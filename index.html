@@ -33,29 +33,33 @@
     <script src="https://unpkg.com/firebase@8.10.1/firebase-firestore.js"></script>
     
     <script>
-        console.log("=== 스크립트 시작 ===");
+        console.log("=== 앱 시작 ===");
         
-        // 즉시 실행
-        (function() {
-            var attempts = 0;
-            var checkInterval = setInterval(function() {
-                attempts++;
-                console.log("Firebase 체크 #" + attempts);
+        // Firebase 대기 없이 바로 체크
+        if (typeof firebase === 'undefined') {
+            console.log("Firebase 아직 로드 안됨, 대기 시작");
+            var checkCount = 0;
+            var checkTimer = setInterval(function() {
+                checkCount++;
+                console.log("체크 #" + checkCount);
                 
                 if (typeof firebase !== 'undefined') {
-                    console.log("✅ Firebase 발견!");
-                    clearInterval(checkInterval);
-                    initApp();
-                } else if (attempts > 20) {
+                    console.log("✅ Firebase 로드 완료!");
+                    clearInterval(checkTimer);
+                    startApp();
+                } else if (checkCount >= 30) {
                     console.error("❌ Firebase 로드 실패");
-                    clearInterval(checkInterval);
-                    document.getElementById('app').innerHTML = '<div class="p-6 text-center"><h2 class="text-xl font-bold text-red-600 mb-4">연결 실패</h2><p class="text-gray-600 mb-4">Firebase를 로드할 수 없습니다.</p><button onclick="location.reload()" class="px-6 py-3 bg-blue-600 text-white rounded-lg">다시 시도</button></div>';
+                    clearInterval(checkTimer);
+                    document.getElementById('app').innerHTML = '<div class="min-h-screen flex items-center justify-center p-6"><div class="text-center"><h2 class="text-2xl font-bold text-red-600 mb-4">연결 실패</h2><p class="text-gray-600 mb-4">Firebase 연결에 실패했습니다.</p><button onclick="location.reload()" class="px-6 py-3 bg-blue-600 text-white rounded-lg font-bold">다시 시도</button></div></div>';
                 }
             }, 100);
-        })();
+        } else {
+            console.log("✅ Firebase 이미 로드됨!");
+            startApp();
+        }
         
-        function initApp() {
-            console.log("=== 앱 초기화 시작 ===");
+        function startApp() {
+            console.log("=== 앱 초기화 ===");
 
             const firebaseConfig = {
                 apiKey: "AIzaSyAu15qibhSy3rBEUYXOxRCqoBf-BlpLtJg",
@@ -85,6 +89,18 @@
             let currentMonth = new Date(); // 현재 보고 있는 월
 
             const familyColors = { 0: '#3b82f6', 1: '#ef4444', 2: '#10b981' };
+
+            window.changeMonthBySelect = function() {
+                var select = document.getElementById('monthSelect');
+                var value = select.value.split('-');
+                currentMonth = new Date(parseInt(value[0]), parseInt(value[1]), 1);
+                render();
+            };
+
+            window.changeMonth = function(direction) {
+                currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + direction, 1);
+                render();
+            };
 
             db.collection('users').onSnapshot(function(s) {
                 users = [];
@@ -133,10 +149,21 @@
                 return currentMonth.getFullYear() + '년 ' + (currentMonth.getMonth() + 1) + '월';
             }
 
-            window.changeMonth = function(direction) {
-                currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + direction, 1);
-                render();
-            };
+            function getMonthOptions() {
+                var options = '';
+                var today = new Date();
+                var currentYear = currentMonth.getFullYear();
+                var currentMonthNum = currentMonth.getMonth();
+                
+                // 현재 년도와 다음 년도
+                for (var year = today.getFullYear(); year <= today.getFullYear() + 1; year++) {
+                    for (var month = 0; month < 12; month++) {
+                        var selected = (year === currentYear && month === currentMonthNum) ? ' selected' : '';
+                        options += '<option value="' + year + '-' + month + '"' + selected + '>' + year + '년 ' + (month + 1) + '월</option>';
+                    }
+                }
+                return options;
+            }
 
             function formatDate(d) {
                 return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
