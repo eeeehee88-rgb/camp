@@ -66,6 +66,7 @@
             let showDetailPage = false;
             let authMode = 'login';
             let editingCamping = null;
+            let currentMonth = new Date(); // 현재 보고 있는 월
 
             const familyColors = { 0: '#3b82f6', 1: '#ef4444', 2: '#10b981' };
 
@@ -98,14 +99,28 @@
             }
 
             function getNext30Days() {
-                var dates = [], today = new Date();
-                for (var i = 0; i < 30; i++) {
-                    var d = new Date(today);
-                    d.setDate(today.getDate() + i);
+                var year = currentMonth.getFullYear();
+                var month = currentMonth.getMonth();
+                var firstDay = new Date(year, month, 1);
+                var lastDay = new Date(year, month + 1, 0);
+                var daysInMonth = lastDay.getDate();
+                var dates = [];
+                
+                for (var i = 1; i <= daysInMonth; i++) {
+                    var d = new Date(year, month, i);
                     dates.push(d);
                 }
                 return dates;
             }
+
+            function getMonthYear() {
+                return currentMonth.getFullYear() + '년 ' + (currentMonth.getMonth() + 1) + '월';
+            }
+
+            window.changeMonth = function(direction) {
+                currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + direction, 1);
+                render();
+            };
 
             function formatDate(d) {
                 return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
@@ -190,10 +205,10 @@
                 render();
             };
 
-            window.openCampingModal = function(dateStr, camping) {
+            window.openCampingModal = function(dateStr, campingData) {
                 if (!currentUser) return alert('로그인 필요');
                 selectedDate = dateStr;
-                editingCamping = camping || null;
+                editingCamping = campingData || null;
                 showCampingModal = true;
                 render();
             };
@@ -208,11 +223,24 @@
                 var name = document.getElementById('campingName').value.trim();
                 var address = document.getElementById('campingAddress').value.trim();
                 var website = document.getElementById('campingWebsite').value.trim();
+                var info = document.getElementById('campingInfo').value.trim();
+                var startDate = document.getElementById('campingStartDate').value;
+                var endDate = document.getElementById('campingEndDate').value;
+                
                 if (!name) return alert('이름 필수');
+                if (!startDate) return alert('시작일을 선택해주세요');
+                if (!endDate) return alert('종료일을 선택해주세요');
+                if (new Date(endDate) < new Date(startDate)) return alert('종료일은 시작일 이후여야 합니다');
 
                 var data = {
-                    date: selectedDate, name: name, address: address, website: website,
-                    createdBy: currentUser.id, createdByName: currentUser.name
+                    name: name, 
+                    address: address, 
+                    website: website, 
+                    info: info,
+                    startDate: startDate,
+                    endDate: endDate,
+                    createdBy: currentUser.id, 
+                    createdByName: currentUser.name
                 };
 
                 if (editingCamping) {
@@ -222,6 +250,37 @@
                     db.collection('campings').add(data).then(closeCampingModal);
                 }
             };
+
+            window.deleteCamping = function(id, createdBy) {
+                if (createdBy !== currentUser.id) return alert('권한 없음');
+                if (confirm('캠핑장 정보를 삭제하시겠습니까?')) {
+                    db.collection('campings').doc(id).delete().then(function() {
+                        if (showDetailPage) closeDetailPage();
+                        else closeCampingModal();
+                    });
+                }
+            };
+
+            function getCampingForDateRange(dateStr) {
+                for (var i = 0; i < campings.length; i++) {
+                    var c = campings[i];
+                    if (dateStr >= c.startDate && dateStr <= c.endDate) {
+                        return c;
+                    }
+                }
+                return null;
+            }
+
+            function isFirstDayOfCamping(dateStr, camping) {
+                return camping && dateStr === camping.startDate;
+            }
+
+            function getDayCount(camping) {
+                var start = new Date(camping.startDate);
+                var end = new Date(camping.endDate);
+                var diff = (end - start) / (1000 * 60 * 60 * 24);
+                return diff + 1;
+            }
 
             window.setStatus = function(status) {
                 if (!currentUser || !selectedDate) return;
@@ -267,7 +326,7 @@
 
             window.deleteNote = function(id, userId) {
                 if (userId !== currentUser.id) return alert('권한 없음');
-                if (confirm('삭제?')) db.collection('notes').doc(id).delete();
+                if (confirm('삭제하시겠습니까?')) db.collection('notes').doc(id).delete();
             };
 
             function render() {
@@ -285,7 +344,7 @@
 
                 if (showDetailPage && selectedDate) {
                     var dateSchedules = schedules.filter(function(s) { return s.date === selectedDate; });
-                    var camping = campings.find(function(c) { return c.date === selectedDate; });
+                    var camping = getCampingForDateRange(selectedDate);
                     var dateNotes = notes.filter(function(n) { return n.date === selectedDate; });
                     var dateObj = new Date(selectedDate + 'T00:00:00');
                     var attendingUsers = users.filter(function(u) {
@@ -293,12 +352,12 @@
                         return s && s.title === '참여';
                     });
 
-                    app.innerHTML = '<div class="min-h-screen bg-gray-50"><div class="sticky top-0 z-10 bg-green-600 text-white shadow-lg p-4 flex items-center gap-3"><button onclick="closeDetailPage()" class="text-2xl">←</button><h2 class="text-xl font-bold">' + formatDateKo(dateObj) + '</h2></div><div class="p-4 space-y-4"><div class="bg-white rounded-lg p-4 shadow"><h3 class="font-bold text-lg mb-3">🏕️ 캠핑장 정보</h3>' + (camping ? '<div><div class="font-bold text-xl text-green-700">' + camping.name + '</div>' + (camping.address ? '<div class="text-sm text-gray-600 mt-2">📍 ' + camping.address + '</div>' : '') + (camping.website ? '<a href="' + camping.website + '" target="_blank" class="text-sm text-blue-600 underline block mt-2">🔗 웹사이트</a>' : '') + '<div class="text-xs text-gray-400 mt-2">등록: ' + camping.createdByName + '</div></div>' : '<div class="text-gray-400 text-center py-4">등록된 캠핑장 없음</div>') + '</div><div class="bg-white rounded-lg p-4 shadow"><h3 class="font-bold text-lg mb-3">📝 준비사항</h3>' + (attendingUsers.length > 0 ? '<div class="space-y-4">' + attendingUsers.map(function(u) {
+                    app.innerHTML = '<div class="min-h-screen bg-gray-50"><div class="sticky top-0 z-10 bg-green-600 text-white shadow-lg p-4 flex items-center gap-3"><button onclick="closeDetailPage()" class="text-2xl">←</button><h2 class="text-xl font-bold">' + formatDateKo(dateObj) + '</h2></div><div class="p-4 space-y-4"><div class="bg-white rounded-lg p-4 shadow"><h3 class="font-bold text-lg mb-3">🏕️ 캠핑장 정보</h3>' + (camping ? '<div><div class="flex items-center justify-between mb-2"><div class="font-bold text-xl text-green-700">' + camping.name + '</div>' + (isFirstDayOfCamping(selectedDate, camping) ? '<span class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">' + getDayCount(camping) + '일</span>' : '<span class="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">진행중</span>') + '</div><div class="text-sm text-gray-600 mb-2">📅 ' + camping.startDate + ' ~ ' + camping.endDate + '</div>' + (camping.address ? '<div class="text-sm text-gray-600 mt-2">📍 ' + camping.address + '</div>' : '') + (camping.website ? '<a href="' + camping.website + '" target="_blank" class="text-sm text-blue-600 underline block mt-2">🔗 웹사이트</a>' : '') + (camping.info ? '<div class="text-sm text-gray-700 mt-3 whitespace-pre-wrap border-t pt-3">' + camping.info + '</div>' : '') + '<div class="text-xs text-gray-400 mt-2">등록: ' + camping.createdByName + '</div>' + (camping.createdBy === currentUser.id ? '<div class="mt-3 flex gap-2"><button onclick="openCampingModal(\'' + selectedDate + '\', ' + JSON.stringify(camping) + ')" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">수정</button><button onclick="deleteCamping(\'' + camping.id + '\', \'' + camping.createdBy + '\')" class="px-4 py-2 bg-red-600 text-white rounded-lg text-sm">삭제</button></div>' : '') + '</div>' : '<div class="text-gray-400 text-center py-4">등록된 캠핑장 없음</div>') + '</div><div class="bg-white rounded-lg p-4 shadow"><h3 class="font-bold text-lg mb-3">📝 준비사항</h3>' + (attendingUsers.length > 0 ? '<div class="space-y-4">' + attendingUsers.map(function(u) {
                         var userNotes = dateNotes.filter(function(n) { return n.userId === u.id; });
                         var color = familyColors[u.colorIndex];
                         return '<div class="border-l-4 pl-3" style="border-color:' + color + '"><div class="font-bold mb-2">' + u.name + '</div><div class="space-y-2 mb-3">' + userNotes.map(function(n) {
-                            return '<div class="flex items-start gap-2 group"><span style="color:' + color + '">•</span><div class="flex-1 text-sm">' + n.content + '</div>' + (n.userId === currentUser.id ? '<button onclick="deleteNote(\'' + n.id + '\',\'' + n.userId + '\')" class="text-red-600 text-xs px-2 opacity-0 group-hover:opacity-100">삭제</button>' : '') + '</div>';
-                        }).join('') + '</div>' + (u.id === currentUser.id ? '<div class="flex gap-2"><input type="text" id="noteInput-' + u.id + '" placeholder="준비할 것" class="flex-1 px-3 py-2 border rounded-lg text-sm" onkeypress="if(event.key===\'Enter\')addNote(\'' + u.id + '\')"><button onclick="addNote(\'' + u.id + '\')" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">추가</button></div>' : '') + '</div>';
+                            return '<div class="flex items-start gap-2 group"><span style="color:' + color + '">•</span><div class="flex-1 text-sm whitespace-pre-wrap">' + n.content + '</div>' + (n.userId === currentUser.id ? '<button onclick="deleteNote(\'' + n.id + '\',\'' + n.userId + '\')" class="text-red-600 text-xs px-2 opacity-0 group-hover:opacity-100">삭제</button>' : '') + '</div>';
+                        }).join('') + '</div>' + (u.id === currentUser.id ? '<div class="flex flex-col gap-2"><textarea id="noteInput-' + u.id + '" placeholder="준비할 것을 자유롭게 작성하세요 (최대 2000자)" maxlength="2000" class="w-full px-3 py-2 border rounded-lg text-sm resize-none" rows="4"></textarea><button onclick="addNote(\'' + u.id + '\')" class="w-full py-2 bg-green-600 text-white rounded-lg text-sm font-medium">추가</button></div>' : '') + '</div>';
                     }).join('') + '</div>' : '<div class="text-gray-400 text-center py-4">참여 가족 없음</div>') + '</div></div></div>';
                     return;
                 }
@@ -312,7 +371,8 @@
                     var dateStr = formatDate(date);
                     var isToday = dateStr === todayStr;
                     var dateSchedules = schedules.filter(function(s) { return s.date === dateStr; });
-                    var camping = campings.find(function(c) { return c.date === dateStr; });
+                    var camping = getCampingForDateRange(dateStr);
+                    var isFirstDay = isFirstDayOfCamping(dateStr, camping);
                     var dateColor = getDateColor(date);
                     var isSunday = date.getDay() === 0;
                     var isSaturday = date.getDay() === 6;
@@ -344,10 +404,14 @@
                         summary = '<div class="mt-2 text-center text-sm text-gray-600">' + attendingCount + '가족 참여</div>';
                     }
 
-                    return '<div class="bg-white rounded-lg p-4 shadow-sm border-2 ' + (isToday ? 'border-green-500' : isSunday ? 'border-red-200' : isSaturday ? 'border-blue-200' : 'border-gray-200') + '"><div class="flex items-center justify-between mb-2"><div class="flex-1" onclick="openDetailPage(\'' + dateStr + '\')"><div class="font-bold text-lg ' + (isToday ? 'text-green-600' : dateColor) + '">' + formatDateKo(date) + '</div>' + (camping ? '<div class="text-sm text-green-700 font-semibold mt-1">🏕️ ' + camping.name + '</div>' : '') + '</div><div class="flex gap-1">' + (!camping || camping.createdBy === currentUser.id ? '<button onclick="openCampingModal(\'' + dateStr + '\', ' + (camping ? 'JSON.parse(\'' + JSON.stringify(camping).replace(/'/g, "\\'") + '\')' : 'null') + ')" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">' + (camping ? '수정' : '등록') + '</button>' : '') + '<button onclick="openAddModal(\'' + dateStr + '\')" class="text-blue-600 font-bold text-xl px-2">+</button></div></div>' + membersHtml + summary + '</div>';
+                    return '<div class="bg-white rounded-lg p-4 shadow-sm border-2 ' + (isToday ? 'border-green-500' : isSunday ? 'border-red-200' : isSaturday ? 'border-blue-200' : camping ? 'border-green-300' : 'border-gray-200') + (camping && !isFirstDay ? ' bg-green-50' : '') + '"><div class="flex items-center justify-between mb-2"><div class="flex-1" onclick="openDetailPage(\'' + dateStr + '\')"><div class="font-bold text-lg ' + (isToday ? 'text-green-600' : dateColor) + '">' + formatDateKo(date) + '</div>' + (camping && isFirstDay ? '<div class="text-sm text-green-700 font-semibold mt-1">🏕️ ' + camping.name + ' (' + getDayCount(camping) + '일)</div>' : camping ? '<div class="text-sm text-green-600 mt-1">🏕️ ' + camping.name + ' (진행중)</div>' : '') + '</div><div class="flex gap-1">' + ((!camping || camping.createdBy === currentUser.id) && isFirstDay ? '<button onclick="event.stopPropagation(); openCampingModal(\'' + dateStr + '\', ' + (camping ? JSON.stringify(camping) : 'null') + ')" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">' + (camping ? '수정' : '등록') + '</button>' : '') + '<button onclick="openAddModal(\'' + dateStr + '\')" class="text-blue-600 font-bold text-xl px-2">+</button></div></div>' + membersHtml + summary + '</div>';
                 }).join('');
 
-                app.innerHTML = '<div class="min-h-screen pb-20"><div class="sticky top-0 z-10 bg-green-600 text-white shadow-lg p-4"><div class="flex items-center justify-between"><div><h1 class="text-2xl font-bold">🏕️ 캠핑 스케줄</h1><p class="text-sm text-green-100">다음 30일</p></div><button onclick="logout()" class="text-xs bg-white/20 px-3 py-1 rounded-full">로그아웃</button></div><div class="mt-2 flex items-center gap-2"><div class="w-3 h-3 rounded-full" style="background-color:' + myColor + '"></div><span>' + currentUser.name + '</span></div></div><div class="p-3 space-y-3">' + datesHtml + '</div>' + (showModal ? '<div class="fixed inset-0 bg-black/50 z-50 flex items-end"><div class="bg-white w-full rounded-t-3xl p-5"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">' + formatDateKo(new Date(selectedDate + 'T00:00:00')) + '</h3><button onclick="closeModal()" class="text-3xl">×</button></div><div><p class="text-sm mb-2">' + currentUser.name + ' 참여 여부</p><div class="flex gap-2"><button onclick="setStatus(\'참여\')" class="flex-1 py-4 bg-green-600 text-white rounded-lg font-bold">✓ 참여</button><button onclick="setStatus(\'불참\')" class="flex-1 py-4 bg-red-600 text-white rounded-lg font-bold">✗ 불참</button><button onclick="setStatus(\'보류\')" class="flex-1 py-4 bg-gray-600 text-white rounded-lg font-bold">? 보류</button></div></div></div></div>' : '') + (showCampingModal ? '<div class="fixed inset-0 bg-black/50 z-50 flex items-end"><div class="bg-white w-full rounded-t-3xl p-5"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">🏕️ 캠핑장 ' + (editingCamping ? '수정' : '등록') + '</h3><button onclick="closeCampingModal()" class="text-3xl">×</button></div><div class="space-y-4"><div><label class="block text-sm mb-1">이름 *</label><input type="text" id="campingName" value="' + (editingCamping ? editingCamping.name : '') + '" class="w-full px-4 py-3 border rounded-lg"></div><div><label class="block text-sm mb-1">주소</label><input type="text" id="campingAddress" value="' + (editingCamping ? editingCamping.address : '') + '" class="w-full px-4 py-3 border rounded-lg"></div><div><label class="block text-sm mb-1">웹사이트</label><input type="url" id="campingWebsite" value="' + (editingCamping ? editingCamping.website : '') + '" class="w-full px-4 py-3 border rounded-lg"></div><div class="flex gap-2"><button onclick="closeCampingModal()" class="flex-1 py-3 border rounded-lg">취소</button><button onclick="saveCamping()" class="flex-1 py-3 bg-green-600 text-white rounded-lg">저장</button></div></div></div></div>' : '') + '</div>';
+                app.innerHTML = '<div class="min-h-screen pb-20"><div class="sticky top-0 z-10 bg-green-600 text-white shadow-lg"><div class="p-4"><div class="flex items-center justify-between mb-3"><div><h1 class="text-2xl font-bold">🏕️ 캠핑 스케줄</h1></div><button onclick="logout()" class="text-xs bg-white/20 px-3 py-1 rounded-full">로그아웃</button></div><div class="flex items-center justify-between"><button onclick="changeMonth(-1)" class="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30">←</button><h2 class="text-xl font-bold">' + getMonthYear() + '</h2><button onclick="changeMonth(1)" class="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30">→</button></div><div class="mt-2 flex items-center gap-2"><div class="w-3 h-3 rounded-full" style="background-color:' + myColor + '"></div><span class="text-sm">' + currentUser.name + '</span></div></div></div><div class="p-3 space-y-3">' + datesHtml + '</div>' + (showModal ? '<div class="fixed inset-0 bg-black/50 z-50 flex items-end" onclick="if(event.target===this)closeModal()"><div class="bg-white w-full rounded-t-3xl p-5"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">' + formatDateKo(new Date(selectedDate + 'T00:00:00')) + '</h3><button onclick="closeModal()" class="text-3xl">×</button></div><div class="space-y-4"><p class="text-sm mb-2">' + currentUser.name + ' 참여 여부</p><div class="flex gap-2"><button onclick="setStatus(\'참여\')" class="flex-1 py-4 bg-green-600 text-white rounded-lg font-bold">✓ 참여</button><button onclick="setStatus(\'불참\')" class="flex-1 py-4 bg-red-600 text-white rounded-lg font-bold">✗ 불참</button><button onclick="setStatus(\'보류\')" class="flex-1 py-4 bg-gray-600 text-white rounded-lg font-bold">? 보류</button></div>' + (function() {
+                    var mySchedule = schedules.find(function(s) { return s.date === selectedDate && s.userId === currentUser.id; });
+                    return mySchedule ? '<div class="pt-4 border-t"><p class="text-sm text-gray-600 mb-2">현재 상태: <span class="font-bold">' + mySchedule.title + '</span></p><button onclick="deleteStatus(\'' + mySchedule.id + '\')" class="w-full py-2 bg-red-100 text-red-700 rounded-lg font-medium">상태 삭제</button></div>' : '';
+                })() + '</div></div></div>' : '') + (showCampingModal ? '<div class="fixed inset-0 bg-black/50 z-50 flex items-end" onclick="if(event.target===this)closeCampingModal()"><div class="bg-white w-full rounded-t-3xl p-5 max-h-[90vh] overflow-y-auto"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">🏕️ 캠핑장 ' + (editingCamping ? '수정' : '등록') + '</h3><button onclick="closeCampingModal()" class="text-3xl">×</button></div><div class="space-y-4"><div><label class="block text-sm mb-1 font-medium">캠핑장 이름 *</label><input type="text" id="campingName" value="' + (editingCamping ? editingCamping.name : '') + '" placeholder="별빛캠핑장" class="w-full px-4 py-3 border rounded-lg"></div><div class="grid grid-cols-2 gap-2"><div><label class="block text-sm mb-1 font-medium">시작일 *</label><input type="date" id="campingStartDate" value="' + (editingCamping ? editingCamping.startDate : selectedDate || '') + '" class="w-full px-4 py-3 border rounded-lg"></div><div><label class="block text-sm mb-1 font-medium">종료일 *</label><input type="date" id="campingEndDate" value="' + (editingCamping ? editingCamping.endDate : selectedDate || '') + '" class="w-full px-4 py-3 border rounded-lg"></div></div><div class="text-xs text-gray-500 bg-blue-50 p-2 rounded">💡 시작일과 종료일을 설정하면 2박3일, 3박4일 등의 일정을 만들 수 있습니다</div><div><label class="block text-sm mb-1">주소</label><input type="text" id="campingAddress" value="' + (editingCamping && editingCamping.address ? editingCamping.address : '') + '" placeholder="경기도 가평군..." class="w-full px-4 py-3 border rounded-lg"></div><div><label class="block text-sm mb-1">웹사이트</label><input type="url" id="campingWebsite" value="' + (editingCamping && editingCamping.website ? editingCamping.website : '') + '" placeholder="https://..." class="w-full px-4 py-3 border rounded-lg"></div><div><label class="block text-sm mb-1">안내 및 메모</label><textarea id="campingInfo" maxlength="2000" placeholder="캠핑장 특징, 주의사항 등을 자유롭게 작성하세요 (최대 2000자)" class="w-full px-4 py-3 border rounded-lg resize-none" rows="5">' + (editingCamping && editingCamping.info ? editingCamping.info : '') + '</textarea></div><div class="flex gap-2 pt-2"><button onclick="closeCampingModal()" class="flex-1 py-3 border rounded-lg font-medium">취소</button><button onclick="saveCamping()" class="flex-1 py-3 bg-green-600 text-white rounded-lg font-medium">저장</button></div>' + (editingCamping && editingCamping.createdBy === currentUser.id ? '<div class="pt-4 border-t"><button onclick="deleteCamping(\'' + editingCamping.id + '\', \'' + editingCamping.createdBy + '\')" class="w-full py-2 bg-red-100 text-red-700 rounded-lg font-medium">캠핑장 정보 삭제</button></div>' : '') + '</div></div></div>' : '') + '</div>';
+            }="deleteCamping(\'' + editingCamping.id + '\', \'' + editingCamping.createdBy + '\')" class="w-full py-2 bg-red-100 text-red-700 rounded-lg font-medium">캠핑장 정보 삭제</button></div>' : '') + '</div></div></div>' : '') + '</div>';
             }
 
         }, 1000);
