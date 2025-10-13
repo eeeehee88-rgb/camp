@@ -3,30 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>캠핑 스케줄</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         * { -webkit-tap-highlight-color: transparent; }
         body { overscroll-behavior: none; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .animate-spin { animation: spin 1s linear infinite; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        .animate-fade { animation: fadeIn 0.5s ease-in; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+        .animate-bounce { animation: bounce 1.5s infinite; }
     </style>
 </head>
 <body class="bg-gray-50">
     <div id="app">
-        <div class="fixed inset-0 bg-gradient-to-b from-blue-400 to-green-400 flex flex-col items-center justify-center">
-            <div class="animate-fade">
-                <div class="text-6xl mb-4">🏕️</div>
-                <div class="text-6xl mb-8">🔥</div>
-                <h2 class="text-2xl font-bold text-white mb-4">캠핑 스케줄</h2>
-                <div class="flex gap-2">
-                    <div class="w-3 h-3 bg-white rounded-full animate-bounce" style="animation-delay: 0s"></div>
-                    <div class="w-3 h-3 bg-white rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                    <div class="w-3 h-3 bg-white rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
+        <div class="fixed inset-0 bg-gradient-to-b from-indigo-600 via-purple-600 to-pink-500 flex flex-col items-center justify-center">
+            <div class="text-center">
+                <div class="text-8xl mb-6 animate-pulse">⛺</div>
+                <div class="flex items-end justify-center gap-4 mb-6">
+                    <div class="text-4xl animate-bounce" style="animation-delay: 0s">🧍</div>
+                    <div class="text-6xl">🔥</div>
+                    <div class="text-4xl animate-bounce" style="animation-delay: 0.3s">🧍</div>
                 </div>
+                <h2 class="text-3xl font-bold text-white mb-2">캠핑 스케줄</h2>
+                <p class="text-white/80 text-sm">로딩 중...</p>
             </div>
         </div>
     </div>
@@ -35,12 +33,14 @@
     <script src="https://unpkg.com/firebase@8.10.1/firebase-firestore.js"></script>
     
     <script>
+        console.log("앱 시작");
+        
         setTimeout(function() {
             if (typeof firebase === 'undefined') {
-                document.getElementById('app').innerHTML = '<div class="p-4 text-center text-red-600">Firebase 로드 실패</div>';
+                document.getElementById('app').innerHTML = '<div class="p-6 text-center"><div class="text-red-600 text-xl font-bold">Firebase 로드 실패</div><button onclick="location.reload()" class="mt-4 px-6 py-3 bg-blue-600 text-white rounded-lg">다시 시도</button></div>';
                 return;
             }
-            
+
             const firebaseConfig = {
                 apiKey: "AIzaSyAu15qibhSy3rBEUYXOxRCqoBf-BlpLtJg",
                 authDomain: "camp-4cd5d.firebaseapp.com",
@@ -52,12 +52,13 @@
 
             firebase.initializeApp(firebaseConfig);
             const db = firebase.firestore();
-
+            
+            let users = [];
             let schedules = [];
             let campings = [];
             let notes = [];
-            let users = [];
-            let currentUser = null;
+            let currentUser = JSON.parse(localStorage.getItem('campingUser') || 'null');
+            let showLoading = !!currentUser;
             let selectedDate = null;
             let showModal = false;
             let showAuthModal = false;
@@ -65,211 +66,111 @@
             let showDetailPage = false;
             let authMode = 'login';
             let editingCamping = null;
-            let showLoading = false;
 
-            const familyColors = {
-                0: '#3b82f6',
-                1: '#ef4444',
-                2: '#10b981'
-            };
+            const familyColors = { 0: '#3b82f6', 1: '#ef4444', 2: '#10b981' };
 
-            const savedUser = localStorage.getItem('campingUser');
-            if (savedUser) {
-                currentUser = JSON.parse(savedUser);
-                showLoading = true;
-            }
-
-            db.collection('users').onSnapshot(function(snapshot) {
+            db.collection('users').onSnapshot(function(s) {
                 users = [];
-                snapshot.forEach(function(doc) {
-                    users.push({ id: doc.id, ...doc.data() });
-                });
+                s.forEach(function(d) { users.push({id: d.id, ...d.data()}); });
                 render();
             });
 
-            db.collection('schedules').onSnapshot(function(snapshot) {
+            db.collection('schedules').onSnapshot(function(s) {
                 schedules = [];
-                snapshot.forEach(function(doc) {
-                    schedules.push({ id: doc.id, ...doc.data() });
-                });
+                s.forEach(function(d) { schedules.push({id: d.id, ...d.data()}); });
                 render();
             });
 
-            db.collection('campings').onSnapshot(function(snapshot) {
+            db.collection('campings').onSnapshot(function(s) {
                 campings = [];
-                snapshot.forEach(function(doc) {
-                    campings.push({ id: doc.id, ...doc.data() });
-                });
+                s.forEach(function(d) { campings.push({id: d.id, ...d.data()}); });
                 render();
             });
 
-            db.collection('notes').onSnapshot(function(snapshot) {
+            db.collection('notes').onSnapshot(function(s) {
                 notes = [];
-                snapshot.forEach(function(doc) {
-                    notes.push({ id: doc.id, ...doc.data() });
-                });
+                s.forEach(function(d) { notes.push({id: d.id, ...d.data()}); });
                 render();
             });
 
-            // 로딩 화면 타이머
             if (showLoading) {
-                setTimeout(function() {
-                    showLoading = false;
-                    render();
-                }, 2000);
+                setTimeout(function() { showLoading = false; render(); }, 2000);
             }
 
             function getNext30Days() {
-                const dates = [];
-                const today = new Date();
-                for (let i = 0; i < 30; i++) {
-                    const date = new Date(today);
-                    date.setDate(today.getDate() + i);
-                    dates.push(date);
+                var dates = [], today = new Date();
+                for (var i = 0; i < 30; i++) {
+                    var d = new Date(today);
+                    d.setDate(today.getDate() + i);
+                    dates.push(d);
                 }
                 return dates;
             }
 
-            function formatDate(date) {
-                return date.getFullYear() + '-' + 
-                       String(date.getMonth() + 1).padStart(2, '0') + '-' + 
-                       String(date.getDate()).padStart(2, '0');
+            function formatDate(d) {
+                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
             }
 
-            function formatDateKo(date) {
-                const days = ['일', '월', '화', '수', '목', '금', '토'];
-                return (date.getMonth() + 1) + '/' + date.getDate() + ' (' + days[date.getDay()] + ')';
+            function formatDateKo(d) {
+                var days = ['일', '월', '화', '수', '목', '금', '토'];
+                return (d.getMonth() + 1) + '/' + d.getDate() + ' (' + days[d.getDay()] + ')';
             }
 
-            function getDateColor(date) {
-                const day = date.getDay();
-                if (day === 0) return 'text-red-600';
-                if (day === 6) return 'text-blue-600';
-                return 'text-gray-800';
-            }
-
-            function getSchedulesForDate(dateStr) {
-                return schedules.filter(function(s) { return s.date === dateStr; });
-            }
-
-            function getCampingForDate(dateStr) {
-                for (let i = 0; i < campings.length; i++) {
-                    if (campings[i].date === dateStr) return campings[i];
-                }
-                return null;
-            }
-
-            function getNotesForDate(dateStr) {
-                return notes.filter(function(n) { return n.date === dateStr; });
-            }
-
-            function getUserSchedule(dateSchedules, userId) {
-                for (let i = 0; i < dateSchedules.length; i++) {
-                    if (dateSchedules[i].userId === userId) {
-                        return dateSchedules[i];
-                    }
-                }
-                return null;
+            function getDateColor(d) {
+                var day = d.getDay();
+                return day === 0 ? 'text-red-600' : day === 6 ? 'text-blue-600' : 'text-gray-800';
             }
 
             window.openAuthModal = function(mode) {
                 authMode = mode;
                 showAuthModal = true;
-                document.body.style.overflow = 'hidden';
                 render();
             };
 
             window.closeAuthModal = function() {
                 showAuthModal = false;
-                document.body.style.overflow = 'auto';
                 render();
             };
 
             window.handleSignup = function() {
-                const name = document.getElementById('signupName').value.trim();
-                const phone = document.getElementById('signupPhone').value.trim();
-
-                if (!name || !phone) {
-                    alert('가족명과 전화번호를 입력해주세요.');
-                    return;
-                }
-
-                let isDuplicate = false;
-                for (let i = 0; i < users.length; i++) {
-                    if (users[i].phone === phone) {
-                        isDuplicate = true;
-                        break;
-                    }
-                }
-
-                if (isDuplicate) {
-                    alert('이미 가입된 전화번호입니다.');
-                    return;
-                }
-
-                if (users.length >= 3) {
-                    alert('정원이 마감되었습니다. (최대 3가족)');
-                    return;
-                }
-
-                const userData = {
-                    name: name,
-                    phone: phone,
-                    colorIndex: users.length,
-                    createdAt: new Date().toISOString()
-                };
-
-                db.collection('users').add(userData)
-                    .then(function(docRef) {
-                        currentUser = { id: docRef.id, ...userData };
-                        localStorage.setItem('campingUser', JSON.stringify(currentUser));
-                        showLoading = true;
-                        closeAuthModal();
-                        render();
-                        setTimeout(function() {
-                            showLoading = false;
-                            render();
-                        }, 2000);
-                    })
-                    .catch(function(error) {
-                        alert('가입 실패: ' + error.message);
-                    });
-            };
-
-            window.handleLogin = function() {
-                const name = document.getElementById('loginName').value.trim();
-                const phone = document.getElementById('loginPhone').value.trim();
-
-                if (!name || !phone) {
-                    alert('가족명과 전화번호를 입력해주세요.');
-                    return;
-                }
-
-                let foundUser = null;
-                for (let i = 0; i < users.length; i++) {
-                    if (users[i].name === name && users[i].phone === phone) {
-                        foundUser = users[i];
-                        break;
-                    }
-                }
-
-                if (foundUser) {
-                    currentUser = foundUser;
+                var name = document.getElementById('signupName').value.trim();
+                var phone = document.getElementById('signupPhone').value.trim();
+                if (!name || !phone) return alert('입력해주세요');
+                if (users.some(function(u) { return u.phone === phone; })) return alert('이미 가입됨');
+                if (users.length >= 3) return alert('정원 마감');
+                
+                db.collection('users').add({
+                    name: name, phone: phone, colorIndex: users.length, createdAt: new Date().toISOString()
+                }).then(function(ref) {
+                    currentUser = {id: ref.id, name: name, phone: phone, colorIndex: users.length};
                     localStorage.setItem('campingUser', JSON.stringify(currentUser));
                     showLoading = true;
                     closeAuthModal();
                     render();
-                    setTimeout(function() {
-                        showLoading = false;
-                        render();
-                    }, 2000);
+                    setTimeout(function() { showLoading = false; render(); }, 2000);
+                });
+            };
+
+            window.handleLogin = function() {
+                var name = document.getElementById('loginName').value.trim();
+                var phone = document.getElementById('loginPhone').value.trim();
+                if (!name || !phone) return alert('입력해주세요');
+                
+                var found = users.find(function(u) { return u.name === name && u.phone === phone; });
+                if (found) {
+                    currentUser = found;
+                    localStorage.setItem('campingUser', JSON.stringify(currentUser));
+                    showLoading = true;
+                    closeAuthModal();
+                    render();
+                    setTimeout(function() { showLoading = false; render(); }, 2000);
                 } else {
-                    alert('일치하는 회원 정보가 없습니다.');
+                    alert('회원 정보 없음');
                 }
             };
 
             window.logout = function() {
-                if (confirm('로그아웃 하시겠습니까?')) {
+                if (confirm('로그아웃?')) {
                     currentUser = null;
                     localStorage.removeItem('campingUser');
                     render();
@@ -277,406 +178,179 @@
             };
 
             window.openAddModal = function(dateStr) {
-                if (!currentUser) {
-                    alert('로그인이 필요합니다.');
-                    openAuthModal('login');
-                    return;
-                }
+                if (!currentUser) return openAuthModal('login');
                 selectedDate = dateStr;
                 showModal = true;
-                document.body.style.overflow = 'hidden';
                 render();
             };
 
             window.closeModal = function() {
                 showModal = false;
                 selectedDate = null;
-                document.body.style.overflow = 'auto';
                 render();
             };
 
             window.openCampingModal = function(dateStr, camping) {
-                if (!currentUser) {
-                    alert('로그인이 필요합니다.');
-                    return;
-                }
+                if (!currentUser) return alert('로그인 필요');
                 selectedDate = dateStr;
                 editingCamping = camping || null;
                 showCampingModal = true;
-                document.body.style.overflow = 'hidden';
                 render();
             };
 
             window.closeCampingModal = function() {
                 showCampingModal = false;
                 editingCamping = null;
-                document.body.style.overflow = 'auto';
                 render();
             };
 
             window.saveCamping = function() {
-                const name = document.getElementById('campingName').value.trim();
-                const address = document.getElementById('campingAddress').value.trim();
-                const website = document.getElementById('campingWebsite').value.trim();
+                var name = document.getElementById('campingName').value.trim();
+                var address = document.getElementById('campingAddress').value.trim();
+                var website = document.getElementById('campingWebsite').value.trim();
+                if (!name) return alert('이름 필수');
 
-                if (!name) {
-                    alert('캠핑장 이름은 필수입니다.');
-                    return;
-                }
-
-                const campingData = {
-                    date: selectedDate,
-                    name: name,
-                    address: address,
-                    website: website,
-                    createdBy: currentUser.id,
-                    createdByName: currentUser.name
+                var data = {
+                    date: selectedDate, name: name, address: address, website: website,
+                    createdBy: currentUser.id, createdByName: currentUser.name
                 };
 
                 if (editingCamping) {
-                    if (editingCamping.createdBy !== currentUser.id) {
-                        alert('본인이 등록한 캠핑장만 수정할 수 있습니다.');
-                        return;
-                    }
-                    db.collection('campings').doc(editingCamping.id).update(campingData)
-                        .then(function() { closeCampingModal(); });
+                    if (editingCamping.createdBy !== currentUser.id) return alert('권한 없음');
+                    db.collection('campings').doc(editingCamping.id).update(data).then(closeCampingModal);
                 } else {
-                    db.collection('campings').add(campingData)
-                        .then(function() { closeCampingModal(); });
+                    db.collection('campings').add(data).then(closeCampingModal);
                 }
             };
 
             window.setStatus = function(status) {
                 if (!currentUser || !selectedDate) return;
-
-                let existingSchedule = null;
-                for (let i = 0; i < schedules.length; i++) {
-                    if (schedules[i].date === selectedDate && schedules[i].userId === currentUser.id) {
-                        existingSchedule = schedules[i];
-                        break;
-                    }
-                }
-
-                const scheduleData = {
-                    title: status,
-                    date: selectedDate,
-                    userId: currentUser.id,
-                    userName: currentUser.name,
-                    color: familyColors[currentUser.colorIndex]
+                
+                var existing = schedules.find(function(s) { return s.date === selectedDate && s.userId === currentUser.id; });
+                var data = {
+                    title: status, date: selectedDate, userId: currentUser.id,
+                    userName: currentUser.name, color: familyColors[currentUser.colorIndex]
                 };
 
-                if (existingSchedule) {
-                    db.collection('schedules').doc(existingSchedule.id).update(scheduleData)
-                        .then(function() { closeModal(); });
+                if (existing) {
+                    db.collection('schedules').doc(existing.id).update(data).then(closeModal);
                 } else {
-                    db.collection('schedules').add(scheduleData)
-                        .then(function() { closeModal(); });
+                    db.collection('schedules').add(data).then(closeModal);
                 }
             };
 
-            window.deleteStatus = function(scheduleId) {
-                if (confirm('삭제하시겠습니까?')) {
-                    db.collection('schedules').doc(scheduleId).delete();
-                }
+            window.deleteStatus = function(id) {
+                if (confirm('삭제?')) db.collection('schedules').doc(id).delete();
             };
 
             window.openDetailPage = function(dateStr) {
                 selectedDate = dateStr;
                 showDetailPage = true;
-                document.body.style.overflow = 'hidden';
                 render();
             };
 
             window.closeDetailPage = function() {
                 showDetailPage = false;
                 selectedDate = null;
-                document.body.style.overflow = 'auto';
                 render();
             };
 
             window.addNote = function(userId) {
-                const input = document.getElementById('noteInput-' + userId);
-                const content = input.value.trim();
-
+                var input = document.getElementById('noteInput-' + userId);
+                var content = input.value.trim();
                 if (!content) return;
 
-                const noteData = {
-                    date: selectedDate,
-                    userId: userId,
-                    content: content,
-                    createdAt: new Date().toISOString()
-                };
-
-                db.collection('notes').add(noteData)
-                    .then(function() {
-                        input.value = '';
-                    });
+                db.collection('notes').add({
+                    date: selectedDate, userId: userId, content: content, createdAt: new Date().toISOString()
+                }).then(function() { input.value = ''; });
             };
 
-            window.deleteNote = function(noteId, noteUserId) {
-                if (noteUserId !== currentUser.id) {
-                    alert('본인이 작성한 메모만 삭제할 수 있습니다.');
-                    return;
-                }
-                if (confirm('삭제하시겠습니까?')) {
-                    db.collection('notes').doc(noteId).delete();
-                }
+            window.deleteNote = function(id, userId) {
+                if (userId !== currentUser.id) return alert('권한 없음');
+                if (confirm('삭제?')) db.collection('notes').doc(id).delete();
             };
 
             function render() {
-                const app = document.getElementById('app');
+                var app = document.getElementById('app');
 
-                // 로딩 화면
                 if (showLoading) {
-                    app.innerHTML = `
-                        <div class="fixed inset-0 bg-gradient-to-b from-blue-400 to-green-400 flex flex-col items-center justify-center">
-                            <div class="animate-fade">
-                                <div class="text-6xl mb-4">🏕️</div>
-                                <div class="text-6xl mb-8">🔥</div>
-                                <h2 class="text-2xl font-bold text-white mb-4">캠핑 스케줄</h2>
-                                <div class="flex gap-2">
-                                    <div class="w-3 h-3 bg-white rounded-full animate-bounce" style="animation-delay: 0s"></div>
-                                    <div class="w-3 h-3 bg-white rounded-full animate-bounce" style="animation-delay: 0.2s"></div>
-                                    <div class="w-3 h-3 bg-white rounded-full animate-bounce" style="animation-delay: 0.4s"></div>
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                    app.innerHTML = '<div class="fixed inset-0 bg-gradient-to-b from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center"><div class="text-center"><div class="text-9xl mb-6 animate-pulse">⛺</div><div class="flex items-end justify-center gap-6 mb-8"><div class="text-5xl animate-bounce">🧍</div><div class="text-7xl">🔥</div><div class="text-5xl animate-bounce" style="animation-delay:0.3s">🧍</div></div><h2 class="text-3xl font-bold text-white">캠핑 스케줄</h2></div></div>';
                     return;
                 }
-                
-                // 로그인 안 된 경우
+
                 if (!currentUser) {
-                    app.innerHTML = `
-                        <div class="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-green-400 to-blue-400">
-                            <div class="text-center mb-8">
-                                <h1 class="text-6xl mb-4">🏕️</h1>
-                                <h2 class="text-3xl font-bold text-white mb-2">캠핑 스케줄</h2>
-                                <p class="text-white/90">가족들과 캠핑 일정을 공유하세요</p>
-                            </div>
-                            <div class="w-full max-w-sm space-y-3">
-                                <button onclick="openAuthModal('login')" class="w-full py-4 bg-white text-green-700 rounded-lg font-bold text-lg active:bg-gray-100 shadow-lg">
-                                    로그인
-                                </button>
-                                <button onclick="openAuthModal('signup')" class="w-full py-4 bg-green-600 text-white rounded-lg font-bold text-lg active:bg-green-700 shadow-lg">
-                                    회원가입
-                                </button>
-                            </div>
-                            <div class="mt-8 text-sm text-white text-center">
-                                <p>현재 가족: ${users.length}/3</p>
-                            </div>
-                        </div>
-
-                        ${showAuthModal ? `
-                            <div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onclick="if(event.target === this) closeAuthModal()">
-                                <div class="bg-white w-full max-w-sm rounded-2xl p-6">
-                                    <h3 class="text-2xl font-bold mb-6 text-center">${authMode === 'login' ? '로그인' : '회원가입'}</h3>
-                                    ${authMode === 'signup' ? `
-                                        <div class="space-y-4">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">가족명</label>
-                                                <input type="text" id="signupName" placeholder="김씨네 가족" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-base">
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
-                                                <input type="tel" id="signupPhone" placeholder="01012345678" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-base">
-                                            </div>
-                                            <button onclick="handleSignup()" class="w-full py-3 bg-green-600 text-white rounded-lg font-bold active:bg-green-700">
-                                                가입하기
-                                            </button>
-                                            <button onclick="openAuthModal('login')" class="w-full py-3 border border-gray-300 text-gray-700 rounded-lg active:bg-gray-50">
-                                                로그인으로 전환
-                                            </button>
-                                        </div>
-                                    ` : `
-                                        <div class="space-y-4">
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">가족명</label>
-                                                <input type="text" id="loginName" placeholder="김씨네 가족" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-base">
-                                            </div>
-                                            <div>
-                                                <label class="block text-sm font-medium text-gray-700 mb-1">전화번호</label>
-                                                <input type="tel" id="loginPhone" placeholder="01012345678" class="w-full px-4 py-3 border border-gray-300 rounded-lg text-base">
-                                            </div>
-                                            <button onclick="handleLogin()" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold active:bg-blue-700">
-                                                로그인
-                                            </button>
-                                            <button onclick="openAuthModal('signup')" class="w-full py-3 border border-gray-300 text-gray-700 rounded-lg active:bg-gray-50">
-                                                회원가입으로 전환
-                                            </button>
-                                        </div>
-                                    `}
-                                </div>
-                            </div>
-                        ` : ''}
-                    `;
+                    app.innerHTML = '<div class="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-green-400 to-blue-400"><div class="text-center mb-8"><h1 class="text-6xl mb-4">🏕️</h1><h2 class="text-3xl font-bold text-white mb-2">캠핑 스케줄</h2><p class="text-white/90">가족들과 캠핑 일정을 공유하세요</p></div><div class="w-full max-w-sm space-y-3"><button onclick="openAuthModal(\'login\')" class="w-full py-4 bg-white text-green-700 rounded-lg font-bold text-lg shadow-lg">로그인</button><button onclick="openAuthModal(\'signup\')" class="w-full py-4 bg-green-600 text-white rounded-lg font-bold text-lg shadow-lg">회원가입</button></div><div class="mt-8 text-sm text-white"><p>현재: ' + users.length + '/3 가족</p></div></div>' + (showAuthModal ? '<div class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4"><div class="bg-white w-full max-w-sm rounded-2xl p-6"><h3 class="text-2xl font-bold mb-6 text-center">' + (authMode === 'login' ? '로그인' : '회원가입') + '</h3>' + (authMode === 'signup' ? '<div class="space-y-4"><div><label class="block text-sm font-medium mb-1">가족명</label><input type="text" id="signupName" placeholder="김씨네" class="w-full px-4 py-3 border rounded-lg"></div><div><label class="block text-sm font-medium mb-1">전화번호</label><input type="tel" id="signupPhone" placeholder="01012345678" class="w-full px-4 py-3 border rounded-lg"></div><button onclick="handleSignup()" class="w-full py-3 bg-green-600 text-white rounded-lg font-bold">가입</button><button onclick="openAuthModal(\'login\')" class="w-full py-3 border rounded-lg">로그인으로</button></div>' : '<div class="space-y-4"><div><label class="block text-sm font-medium mb-1">가족명</label><input type="text" id="loginName" placeholder="김씨네" class="w-full px-4 py-3 border rounded-lg"></div><div><label class="block text-sm font-medium mb-1">전화번호</label><input type="tel" id="loginPhone" placeholder="01012345678" class="w-full px-4 py-3 border rounded-lg"></div><button onclick="handleLogin()" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold">로그인</button><button onclick="openAuthModal(\'signup\')" class="w-full py-3 border rounded-lg">회원가입으로</button></div>') + '</div></div>' : '');
                     return;
                 }
 
-                // 상세 페이지
                 if (showDetailPage && selectedDate) {
-                    const dateSchedules = getSchedulesForDate(selectedDate);
-                    const camping = getCampingForDate(selectedDate);
-                    const dateNotes = getNotesForDate(selectedDate);
-                    const dateObj = new Date(selectedDate + 'T00:00:00');
-                    
-                    const attendingUsers = [];
-                    for (let i = 0; i < users.length; i++) {
-                        const schedule = getUserSchedule(dateSchedules, users[i].id);
-                        if (schedule && schedule.title === '참여') {
-                            attendingUsers.push(users[i]);
-                        }
-                    }
+                    var dateSchedules = schedules.filter(function(s) { return s.date === selectedDate; });
+                    var camping = campings.find(function(c) { return c.date === selectedDate; });
+                    var dateNotes = notes.filter(function(n) { return n.date === selectedDate; });
+                    var dateObj = new Date(selectedDate + 'T00:00:00');
+                    var attendingUsers = users.filter(function(u) {
+                        var s = dateSchedules.find(function(ds) { return ds.userId === u.id; });
+                        return s && s.title === '참여';
+                    });
 
-                    app.innerHTML = `
-                        <div class="min-h-screen bg-gray-50">
-                            <div class="sticky top-0 z-10 bg-green-600 text-white shadow-lg">
-                                <div class="p-4 flex items-center gap-3">
-                                    <button onclick="closeDetailPage()" class="text-2xl">←</button>
-                                    <div class="flex-1">
-                                        <h2 class="text-xl font-bold">${formatDateKo(dateObj)}</h2>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="p-4 space-y-4">
-                                <!-- 캠핑장 정보 -->
-                                <div class="bg-white rounded-lg p-4 shadow">
-                                    <h3 class="font-bold text-lg mb-3 flex items-center gap-2">
-                                        🏕️ 캠핑장 정보
-                                    </h3>
-                                    ${camping ? `
-                                        <div class="space-y-2">
-                                            <div class="font-bold text-xl text-green-700">${camping.name}</div>
-                                            ${camping.address ? '<div class="text-sm text-gray-600">📍 ' + camping.address + '</div>' : ''}
-                                            ${camping.website ? '<a href="' + camping.website + '" target="_blank" class="text-sm text-blue-600 underline block">🔗 웹사이트 바로가기</a>' : ''}
-                                            <div class="text-xs text-gray-400 mt-2">등록: ${camping.createdByName}</div>
-                                        </div>
-                                    ` : '<div class="text-gray-400 text-center py-4">등록된 캠핑장이 없습니다</div>'}
-                                </div>
-
-                                <!-- 참여 가족별 메모 -->
-                                <div class="bg-white rounded-lg p-4 shadow">
-                                    <h3 class="font-bold text-lg mb-3">📝 가족별 준비사항</h3>
-                                    ${attendingUsers.length > 0 ? `
-                                        <div class="space-y-4">
-                                            ${attendingUsers.map(function(user) {
-                                                const userNotes = dateNotes.filter(function(n) { return n.userId === user.id; });
-                                                const color = familyColors[user.colorIndex];
-                                                return `
-                                                    <div class="border-l-4 pl-3" style="border-color: ${color}">
-                                                        <div class="font-bold text-gray-800 mb-2">${user.name}</div>
-                                                        <div class="space-y-2 mb-3">
-                                                            ${userNotes.map(function(note) {
-                                                                return `
-                                                                    <div class="flex items-start gap-2 group">
-                                                                        <span class="text-lg" style="color: ${color}">•</span>
-                                                                        <div class="flex-1 text-sm text-gray-700">${note.content}</div>
-                                                                        ${note.userId === currentUser.id ? `
-                                                                            <button onclick="deleteNote('${note.id}', '${note.userId}')" class="opacity-0 group-hover:opacity-100 text-red-600 text-xs px-2">삭제</button>
-                                                                        ` : ''}
-                                                                    </div>
-                                                                `;
-                                                            }).join('')}
-                                                        </div>
-                                                        ${user.id === currentUser.id ? `
-                                                            <div class="flex gap-2">
-                                                                <input type="text" id="noteInput-${user.id}" placeholder="준비할 것을 입력하세요" class="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm" onkeypress="if(event.key==='Enter') addNote('${user.id}')">
-                                                                <button onclick="addNote('${user.id}')" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium active:bg-green-700">
-                                                                    추가
-                                                                </button>
-                                                            </div>
-                                                        ` : ''}
-                                                    </div>
-                                                `;
-                                            }).join('')}
-                                        </div>
-                                    ` : '<div class="text-gray-400 text-center py-4">참여 확정된 가족이 없습니다</div>'}
-                                </div>
-                            </div>
-                        </div>
-                    `;
+                    app.innerHTML = '<div class="min-h-screen bg-gray-50"><div class="sticky top-0 z-10 bg-green-600 text-white shadow-lg p-4 flex items-center gap-3"><button onclick="closeDetailPage()" class="text-2xl">←</button><h2 class="text-xl font-bold">' + formatDateKo(dateObj) + '</h2></div><div class="p-4 space-y-4"><div class="bg-white rounded-lg p-4 shadow"><h3 class="font-bold text-lg mb-3">🏕️ 캠핑장 정보</h3>' + (camping ? '<div><div class="font-bold text-xl text-green-700">' + camping.name + '</div>' + (camping.address ? '<div class="text-sm text-gray-600 mt-2">📍 ' + camping.address + '</div>' : '') + (camping.website ? '<a href="' + camping.website + '" target="_blank" class="text-sm text-blue-600 underline block mt-2">🔗 웹사이트</a>' : '') + '<div class="text-xs text-gray-400 mt-2">등록: ' + camping.createdByName + '</div></div>' : '<div class="text-gray-400 text-center py-4">등록된 캠핑장 없음</div>') + '</div><div class="bg-white rounded-lg p-4 shadow"><h3 class="font-bold text-lg mb-3">📝 준비사항</h3>' + (attendingUsers.length > 0 ? '<div class="space-y-4">' + attendingUsers.map(function(u) {
+                        var userNotes = dateNotes.filter(function(n) { return n.userId === u.id; });
+                        var color = familyColors[u.colorIndex];
+                        return '<div class="border-l-4 pl-3" style="border-color:' + color + '"><div class="font-bold mb-2">' + u.name + '</div><div class="space-y-2 mb-3">' + userNotes.map(function(n) {
+                            return '<div class="flex items-start gap-2 group"><span style="color:' + color + '">•</span><div class="flex-1 text-sm">' + n.content + '</div>' + (n.userId === currentUser.id ? '<button onclick="deleteNote(\'' + n.id + '\',\'' + n.userId + '\')" class="text-red-600 text-xs px-2 opacity-0 group-hover:opacity-100">삭제</button>' : '') + '</div>';
+                        }).join('') + '</div>' + (u.id === currentUser.id ? '<div class="flex gap-2"><input type="text" id="noteInput-' + u.id + '" placeholder="준비할 것" class="flex-1 px-3 py-2 border rounded-lg text-sm" onkeypress="if(event.key===\'Enter\')addNote(\'' + u.id + '\')"><button onclick="addNote(\'' + u.id + '\')" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm">추가</button></div>' : '') + '</div>';
+                    }).join('') + '</div>' : '<div class="text-gray-400 text-center py-4">참여 가족 없음</div>') + '</div></div></div>';
                     return;
                 }
 
-                // 메인 화면
-                const dates = getNext30Days();
-                const today = new Date();
-                const todayStr = formatDate(today);
+                var dates = getNext30Days();
+                var today = new Date();
+                var todayStr = formatDate(today);
+                var myColor = familyColors[currentUser.colorIndex];
 
-                let datesHtml = '';
-                for (let i = 0; i < dates.length; i++) {
-                    const date = dates[i];
-                    const dateStr = formatDate(date);
-                    const isToday = dateStr === todayStr;
-                    const dateSchedules = getSchedulesForDate(dateStr);
-                    const camping = getCampingForDate(dateStr);
-                    const dateColor = getDateColor(date);
-                    const isSunday = date.getDay() === 0;
-                    const isSaturday = date.getDay() === 6;
+                var datesHtml = dates.map(function(date) {
+                    var dateStr = formatDate(date);
+                    var isToday = dateStr === todayStr;
+                    var dateSchedules = schedules.filter(function(s) { return s.date === dateStr; });
+                    var camping = campings.find(function(c) { return c.date === dateStr; });
+                    var dateColor = getDateColor(date);
+                    var isSunday = date.getDay() === 0;
+                    var isSaturday = date.getDay() === 6;
+                    var attendingCount = 0;
 
-                    let membersStatusHtml = '<div class="grid grid-cols-3 gap-1 mt-2">';
-                    let attendingCount = 0;
-                    
-                    for (let j = 0; j < 3; j++) {
+                    var membersHtml = '<div class="grid grid-cols-3 gap-1 mt-2">';
+                    for (var j = 0; j < 3; j++) {
                         if (j < users.length) {
-                            const user = users[j];
-                            const status = getUserSchedule(dateSchedules, user.id);
-                            const color = familyColors[user.colorIndex];
-                            
+                            var user = users[j];
+                            var status = dateSchedules.find(function(s) { return s.userId === user.id; });
+                            var color = familyColors[user.colorIndex];
                             if (status) {
                                 if (status.title === '참여') attendingCount++;
-                                const emoji = status.title === '참여' ? '✓' : status.title === '불참' ? '✗' : '?';
-                                membersStatusHtml += `
-                                    <div class="text-center py-2 rounded text-white text-sm font-bold" style="background-color: ${color}">
-                                        <div>${emoji}</div>
-                                        <div class="text-xs mt-1 truncate px-1">${user.name}</div>
-                                    </div>
-                                `;
+                                var emoji = status.title === '참여' ? '✓' : status.title === '불참' ? '✗' : '?';
+                                membersHtml += '<div class="text-center py-2 rounded text-white text-sm font-bold" style="background-color:' + color + '"><div>' + emoji + '</div><div class="text-xs mt-1 truncate px-1">' + user.name + '</div></div>';
                             } else {
-                                membersStatusHtml += `
-                                    <div class="text-center py-2 rounded bg-gray-200 text-gray-400 text-sm">
-                                        <div>?</div>
-                                        <div class="text-xs mt-1 truncate px-1">${user.name}</div>
-                                    </div>
-                                `;
+                                membersHtml += '<div class="text-center py-2 rounded bg-gray-200 text-gray-400 text-sm"><div>?</div><div class="text-xs mt-1 truncate px-1">' + user.name + '</div></div>';
                             }
                         } else {
-                            membersStatusHtml += `
-                                <div class="text-center py-2 rounded bg-gray-100 text-gray-300 text-xs">
-                                    빈자리
-                                </div>
-                            `;
+                            membersHtml += '<div class="text-center py-2 rounded bg-gray-100 text-gray-300 text-xs">빈자리</div>';
                         }
                     }
-                    membersStatusHtml += '</div>';
+                    membersHtml += '</div>';
 
-                    let statusSummary = '';
+                    var summary = '';
                     if (attendingCount === users.length && users.length > 0) {
-                        statusSummary = '<div class="mt-2 text-center text-sm font-bold text-green-600">✓ 모두 참여!</div>';
+                        summary = '<div class="mt-2 text-center text-sm font-bold text-green-600">✓ 모두 참여!</div>';
                     } else if (attendingCount > 0) {
-                        statusSummary = `<div class="mt-2 text-center text-sm text-gray-600">${attendingCount}가족 참여</div>`;
+                        summary = '<div class="mt-2 text-center text-sm text-gray-600">' + attendingCount + '가족 참여</div>';
                     }
 
-                    datesHtml += `
-                        <div class="bg-white rounded-lg p-4 shadow-sm border-2 ${isToday ? 'border-green-500' : isSunday ? 'border-red-200' : isSaturday ? 'border-blue-200' : 'border-gray-200'}">
-                            <div class="flex items-center justify-between mb-2">
-                                <div class="flex-1" onclick="openDetailPage('${dateStr}')">
-                                    <div class="font-bold text-lg ${isToday ? 'text-green-600' : dateColor}">
-                                        ${formatDateKo(date)}
-                                    </div>
-                                    ${camping ? `<div class="text-sm text-green-700 font-semibold mt-1" onclick="event.stopPropagation(); openCampingModal('${dateStr}', ${JSON.stringify(camping).replace(/"/g, '&quot;')})">🏕️ ${camping.name}</div>` : ''}
-                                </div>
-                                <div class="flex gap-1">
-                                    ${!camping || camping.createdBy === currentUser.id ? `
-                                        <button onclick="openCampingModal('${dateStr}', ${camping ? JSON.stringify(camping).replace(/"/g, '&quot;') : 'null'})" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
-                                            ${camping ? '수정' : '등록'}
-                                        </button>
-                                    ` : ''}
-                                    <button onclick="openAddModal('${dateStr}')" class="text-blue-600 font-bold text-xl px-2">
-                                        +
-                                    </button>
-                                </div>
-                            </div>
-                            ${membersStatusHtml}
-                            ${statusSummary
+                    return '<div class="bg-white rounded-lg p-4 shadow-sm border-2 ' + (isToday ? 'border-green-500' : isSunday ? 'border-red-200' : isSaturday ? 'border-blue-200' : 'border-gray-200') + '"><div class="flex items-center justify-between mb-2"><div class="flex-1" onclick="openDetailPage(\'' + dateStr + '\')"><div class="font-bold text-lg ' + (isToday ? 'text-green-600' : dateColor) + '">' + formatDateKo(date) + '</div>' + (camping ? '<div class="text-sm text-green-700 font-semibold mt-1">🏕️ ' + camping.name + '</div>' : '') + '</div><div class="flex gap-1">' + (!camping || camping.createdBy === currentUser.id ? '<button onclick="openCampingModal(\'' + dateStr + '\', ' + (camping ? 'JSON.parse(\'' + JSON.stringify(camping).replace(/'/g, "\\'") + '\')' : 'null') + ')" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">' + (camping ? '수정' : '등록') + '</button>' : '') + '<button onclick="openAddModal(\'' + dateStr + '\')" class="text-blue-600 font-bold text-xl px-2">+</button></div></div>' + membersHtml + summary + '</div>';
+                }).join('');
+
+                app.innerHTML = '<div class="min-h-screen pb-20"><div class="sticky top-0 z-10 bg-green-600 text-white shadow-lg p-4"><div class="flex items-center justify-between"><div><h1 class="text-2xl font-bold">🏕️ 캠핑 스케줄</h1><p class="text-sm text-green-100">다음 30일</p></div><button onclick="logout()" class="text-xs bg-white/20 px-3 py-1 rounded-full">로그아웃</button></div><div class="mt-2 flex items-center gap-2"><div class="w-3 h-3 rounded-full" style="background-color:' + myColor + '"></div><span>' + currentUser.name + '</span></div></div><div class="p-3 space-y-3">' + datesHtml + '</div>' + (showModal ? '<div class="fixed inset-0 bg-black/50 z-50 flex items-end"><div class="bg-white w-full rounded-t-3xl p-5"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">' + formatDateKo(new Date(selectedDate + 'T00:00:00')) + '</h3><button onclick="closeModal()" class="text-3xl">×</button></div><div><p class="text-sm mb-2">' + currentUser.name + ' 참여 여부</p><div class="flex gap-2"><button onclick="setStatus(\'참여\')" class="flex-1 py-4 bg-green-600 text-white rounded-lg font-bold">✓ 참여</button><button onclick="setStatus(\'불참\')" class="flex-1 py-4 bg-red-600 text-white rounded-lg font-bold">✗ 불참</button><button onclick="setStatus(\'보류\')" class="flex-1 py-4 bg-gray-600 text-white rounded-lg font-bold">? 보류</button></div></div></div></div>' : '') + (showCampingModal ? '<div class="fixed inset-0 bg-black/50 z-50 flex items-end"><div class="bg-white w-full rounded-t-3xl p-5"><div class="flex justify-between items-center mb-4"><h3 class="text-xl font-bold">🏕️ 캠핑장 ' + (editingCamping ? '수정' : '등록') + '</h3><button onclick="closeCampingModal()" class="text-3xl">×</button></div><div class="space-y-4"><div><label class="block text-sm mb-1">이름 *</label><input type="text" id="campingName" value="' + (editingCamping ? editingCamping.name : '') + '" class="w-full px-4 py-3 border rounded-lg"></div><div><label class="block text-sm mb-1">주소</label><input type="text" id="campingAddress" value="' + (editingCamping ? editingCamping.address : '') + '" class="w-full px-4 py-3 border rounded-lg"></div><div><label class="block text-sm mb-1">웹사이트</label><input type="url" id="campingWebsite" value="' + (editingCamping ? editingCamping.website : '') + '" class="w-full px-4 py-3 border rounded-lg"></div><div class="flex gap-2"><button onclick="closeCampingModal()" class="flex-1 py-3 border rounded-lg">취소</button><button onclick="saveCamping()" class="flex-1 py-3 bg-green-600 text-white rounded-lg">저장</button></div></div></div></div>' : '') + '</div>';
+            }
+
+        }, 1000);
+    </script>
+</body>
+</html>
