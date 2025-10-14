@@ -217,14 +217,15 @@
             }
 
             if (isSignUp) {
-                var existingUser = allUsers.find(function(u) { return u.phone === phone; });
-                if (existingUser) {
+                // 회원가입
+                var existingUserByPhone = allUsers.find(function(u) { return u.phone === phone; });
+                if (existingUserByPhone) {
                     alert('이미 가입된 휴대폰 번호입니다. 로그인해주세요.');
                     return;
                 }
 
-                var existingName = allUsers.find(function(u) { return u.name === teamName; });
-                if (existingName) {
+                var existingUserByName = allUsers.find(function(u) { return u.name === teamName; });
+                if (existingUserByName) {
                     alert('이미 사용 중인 팀 이름입니다. 다른 이름을 입력해주세요.');
                     return;
                 }
@@ -242,9 +243,17 @@
                 render();
 
                 db.collection('users').add(newUser).then(function(docRef) {
-                    currentUser = { id: docRef.id, name: teamName, phone: phone, colorIndex: colorIndex };
+                    // 새 사용자를 allUsers에 추가
+                    var createdUser = {
+                        id: docRef.id,
+                        name: teamName,
+                        phone: phone,
+                        colorIndex: colorIndex
+                    };
+                    allUsers.push(createdUser);
+                    
+                    currentUser = createdUser;
                     localStorage.setItem('currentUser', JSON.stringify(currentUser));
-                    allUsers.push(currentUser);
                     
                     setTimeout(function() {
                         isLoading = false;
@@ -257,12 +266,19 @@
                     render();
                 });
             } else {
+                // 로그인
+                console.log('로그인 시도:', teamName, phone);
+                console.log('전체 사용자:', allUsers);
+                
                 var user = allUsers.find(function(u) { 
+                    console.log('비교:', u.name, '===', teamName, '&&', u.phone, '===', phone);
                     return u.name === teamName && u.phone === phone; 
                 });
                 
+                console.log('찾은 사용자:', user);
+                
                 if (!user) {
-                    alert('팀 이름 또는 휴대폰 번호가 일치하지 않습니다.');
+                    alert('팀 이름 또는 휴대폰 번호가 일치하지 않습니다.\n\n입력한 정보:\n팀 이름: ' + teamName + '\n휴대폰: ' + phone + '\n\n등록된 사용자 수: ' + allUsers.length + '명');
                     return;
                 }
 
@@ -820,19 +836,45 @@
             });
         }
 
+        // 사용자 목록을 먼저 로드한 후에 자동 로그인 시도
+        var usersLoaded = false;
         db.collection('users').onSnapshot(function(snapshot) {
             allUsers = [];
             snapshot.forEach(function(doc) {
-                allUsers.push(Object.assign({ id: doc.id }, doc.data()));
+                var userData = doc.data();
+                allUsers.push({
+                    id: doc.id,
+                    name: userData.name,
+                    phone: userData.phone,
+                    colorIndex: userData.colorIndex
+                });
             });
             
+            console.log('Firebase에서 불러온 사용자:', allUsers);
+            usersLoaded = true;
+            
+            // localStorage에 저장된 사용자 정보로 자동 로그인 시도
             var saved = localStorage.getItem('currentUser');
-            if (saved) {
+            if (saved && !currentUser) {
                 var savedUser = JSON.parse(saved);
-                currentUser = allUsers.find(function(u) { return u.id === savedUser.id; });
+                console.log('저장된 사용자 정보:', savedUser);
+                
+                currentUser = allUsers.find(function(u) { 
+                    return u.id === savedUser.id; 
+                });
+                
+                console.log('찾은 현재 사용자:', currentUser);
+                
                 if (currentUser) {
-                    init();
+                    isLoading = true;
+                    render();
+                    setTimeout(function() {
+                        isLoading = false;
+                        init();
+                    }, 1500);
                 } else {
+                    // 저장된 정보가 DB에 없으면 localStorage 클리어
+                    localStorage.removeItem('currentUser');
                     render();
                 }
             } else {
