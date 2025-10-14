@@ -107,7 +107,6 @@
     let allUsers = [];
     let schedules = [];
     let campings = [];
-    let campingNotes = [];
     let prepItems = []; // 준비항목
     let showModal = false;
     let selectedDate = null;
@@ -268,32 +267,6 @@
     window.closeCampingDetail = function(){ showCampingDetail=false; selectedCamping=null; selectedPrepItem=null; render(); };
     window.openCampingModal = function(dateStr, campingId){ editingCamping = campingId ? campings.find(c=>c.id===campingId) : null; selectedDate=dateStr; showCampingModal=true; showCampingDetail=false; render(); };
     window.closeCampingModal = function(){ showCampingModal=false; editingCamping=null; render(); };
-
-    /* 메모 저장 */
-    window.saveNote = function() {
-      if (!selectedCamping || !currentUser) return;
-      const noteText = document.getElementById('campingNote').value.trim();
-      
-      const existing = campingNotes.find(n => n.campingId === selectedCamping.id && n.userId === currentUser.id);
-      const data = {
-        campingId: selectedCamping.id,
-        userId: currentUser.id,
-        userName: currentUser.name,
-        note: noteText,
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      };
-
-      if (existing) {
-        db.collection('campingNotes').doc(existing.id).update(data).then(() => {
-          alert('메모가 저장되었습니다.');
-        });
-      } else {
-        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-        db.collection('campingNotes').add(data).then(() => {
-          alert('메모가 저장되었습니다.');
-        });
-      }
-    };
 
     /* 준비항목 관련 */
     window.addPrepItem = function(userId) {
@@ -526,7 +499,7 @@
             <button onclick="openAddModal('${dateStr}')" class="text-blue-600 font-bold text-xl px-2">+</button>
           </div>`;
 
-        datesHtml += `
+      datesHtml += `
           <div id="day-${dateStr}" class="bg-white rounded-xl p-4 shadow-sm border-2${todayBorder}${multiDayRing}">
             <div class="flex items-center justify-between mb-2">
               <div>
@@ -584,7 +557,7 @@
           </div>`;
       }
 
-      // 상세 모달 (메모 + 준비항목 포함)
+      // 상세 모달 (준비항목만 포함, 개인메모 제거)
       let campingDetailHtml='';
       if(showCampingDetail && selectedCamping){
         const addressHtml = selectedCamping.address ? `<div>📍 ${escapeHtml(selectedCamping.address)}</div>` : '';
@@ -593,21 +566,6 @@
         const editButtonHtml = selectedCamping.createdBy === currentUser.id ? `<button onclick="openCampingModal('${selectedCamping.startDate}', '${selectedCamping.id}')" class="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium">수정</button>` : '';
         const totalDays = getDaysDiffInclusive(selectedCamping.startDate, selectedCamping.endDate);
         const daysHtml = totalDays>1 ? `<div class="text-sm text-gray-700">총 ${totalDays}일</div>` : '';
-
-        // 내 메모 가져오기
-        const myNote = campingNotes.find(n => n.campingId === selectedCamping.id && n.userId === currentUser.id);
-        const noteText = myNote ? myNote.note : '';
-
-        // 다른 사람들 메모
-        const otherNotes = campingNotes.filter(n => n.campingId === selectedCamping.id && n.userId !== currentUser.id);
-        let otherNotesHtml = '';
-        if(otherNotes.length > 0){
-          otherNotesHtml = '<div class="bg-blue-50 rounded-lg p-4"><h5 class="font-medium mb-2">💬 다른 멤버 메모</h5><div class="space-y-2">';
-          for(const note of otherNotes){
-            otherNotesHtml += `<div class="text-sm"><span class="font-semibold">${escapeHtml(note.userName)}:</span> ${escapeHtml(note.note)}</div>`;
-          }
-          otherNotesHtml += '</div></div>';
-        }
 
         // 준비항목 섹션
         let prepItemsHtml = '<div class="bg-purple-50 rounded-lg p-4"><h5 class="font-bold text-lg mb-3">📦 준비항목</h5>';
@@ -674,14 +632,6 @@
                   </div>
                 </div>
                 ${infoHtml}
-                
-                <div class="bg-green-50 rounded-lg p-4">
-                  <h5 class="font-medium mb-2">✏️ 내 메모</h5>
-                  <textarea id="campingNote" placeholder="개인 메모를 남겨보세요..." class="w-full px-3 py-2 border rounded-lg resize-none" rows="3">${escapeHtml(noteText)}</textarea>
-                  <button onclick="saveNote()" class="mt-2 w-full py-2 bg-green-600 text-white rounded-lg font-medium">메모 저장</button>
-                </div>
-                
-                ${otherNotesHtml}
                 ${prepItemsHtml}
                 
                 <div class="flex gap-2">
@@ -793,12 +743,6 @@
       db.collection('campings').onSnapshot(snap=>{ 
         campings=[]; 
         snap.forEach(doc=>{ campings.push(Object.assign({ id: doc.id }, doc.data())); }); 
-        render(); 
-      });
-      
-      db.collection('campingNotes').onSnapshot(snap=>{ 
-        campingNotes=[]; 
-        snap.forEach(doc=>{ campingNotes.push(Object.assign({ id: doc.id }, doc.data())); }); 
         render(); 
       });
 
