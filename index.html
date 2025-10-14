@@ -108,6 +108,7 @@
     let schedules = [];
     let campings = [];
     let campingNotes = [];
+    let prepItems = []; // 준비항목
     let showModal = false;
     let selectedDate = null;
     let showCampingDetail = false;
@@ -118,6 +119,7 @@
     let showLoginModal = false;
     let isSignUp = false;
     let isLoading = false;
+    let selectedPrepItem = null; // 선택된 준비항목
 
     let needScrollToToday = false;
 
@@ -258,11 +260,12 @@
       if(selectedCamping){ 
         showCampingDetail=true; 
         showModal=false; 
+        selectedPrepItem = null;
         render(); 
       } 
     };
     
-    window.closeCampingDetail = function(){ showCampingDetail=false; selectedCamping=null; render(); };
+    window.closeCampingDetail = function(){ showCampingDetail=false; selectedCamping=null; selectedPrepItem=null; render(); };
     window.openCampingModal = function(dateStr, campingId){ editingCamping = campingId ? campings.find(c=>c.id===campingId) : null; selectedDate=dateStr; showCampingModal=true; showCampingDetail=false; render(); };
     window.closeCampingModal = function(){ showCampingModal=false; editingCamping=null; render(); };
 
@@ -290,6 +293,72 @@
           alert('메모가 저장되었습니다.');
         });
       }
+    };
+
+    /* 준비항목 관련 */
+    window.addPrepItem = function(userId) {
+      if (!selectedCamping || !currentUser) return;
+      const inputId = 'prepInput-' + userId;
+      const input = document.getElementById(inputId);
+      const text = input.value.trim();
+      
+      if (!text) {
+        alert('준비항목을 입력해주세요.');
+        return;
+      }
+
+      const data = {
+        campingId: selectedCamping.id,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        text: text,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      db.collection('prepItems').add(data).then(() => {
+        input.value = '';
+        const counterId = 'charCount-' + userId;
+        const counter = document.getElementById(counterId);
+        if(counter) counter.textContent = '0';
+      });
+    };
+
+    window.selectPrepItem = function(itemId, element) {
+      const item = prepItems.find(p => p.id === itemId);
+      if (!item || item.userId !== currentUser.id) return;
+
+      // 이전 선택 해제
+      if(selectedPrepItem && selectedPrepItem !== itemId) {
+        const prevEl = document.querySelector(`[data-item-id="${selectedPrepItem}"]`);
+        if(prevEl) {
+          prevEl.classList.remove('bg-red-50');
+          const deleteSpan = prevEl.querySelector('.delete-text');
+          if(deleteSpan) deleteSpan.classList.add('hidden');
+        }
+      }
+
+      // 현재 선택
+      if(selectedPrepItem === itemId) {
+        element.classList.remove('bg-red-50');
+        const deleteSpan = element.querySelector('.delete-text');
+        if(deleteSpan) deleteSpan.classList.add('hidden');
+        selectedPrepItem = null;
+      } else {
+        element.classList.add('bg-red-50');
+        const deleteSpan = element.querySelector('.delete-text');
+        if(deleteSpan) deleteSpan.classList.remove('hidden');
+        selectedPrepItem = itemId;
+      }
+    };
+
+    window.deletePrepItem = function(itemId, userId, event) {
+      event.stopPropagation();
+      if (userId !== currentUser.id) return;
+      if (!confirm('삭제하시겠습니까?')) return;
+      
+      db.collection('prepItems').doc(itemId).delete().then(() => {
+        selectedPrepItem = null;
+      });
     };
 
     window.saveCamping = function(){
@@ -515,7 +584,7 @@
           </div>`;
       }
 
-      // 상세 모달 (메모 기능 포함)
+      // 상세 모달 (메모 + 준비항목 포함)
       let campingDetailHtml='';
       if(showCampingDetail && selectedCamping){
         const addressHtml = selectedCamping.address ? `<div>📍 ${escapeHtml(selectedCamping.address)}</div>` : '';
@@ -539,6 +608,53 @@
           }
           otherNotesHtml += '</div></div>';
         }
+
+        // 준비항목 섹션
+        let prepItemsHtml = '<div class="bg-purple-50 rounded-lg p-4"><h5 class="font-bold text-lg mb-3">📦 준비항목</h5>';
+        
+        for(const user of allUsers){
+          const userItems = prepItems.filter(p => p.campingId === selectedCamping.id && p.userId === user.id);
+          const isMe = user.id === currentUser.id;
+          const bgColor = isMe ? 'bg-green-50 border-green-200' : 'bg-gray-50 border-gray-200';
+          
+          prepItemsHtml += `<div class="${bgColor} rounded-lg p-3 mb-3 border-2">`;
+          prepItemsHtml += `<div class="font-bold mb-2">${escapeHtml(user.name)}${isMe ? ' (나)' : ''}</div>`;
+          
+          if(userItems.length > 0){
+            prepItemsHtml += '<div class="space-y-2 mb-3">';
+            for(const item of userItems){
+              const canDelete = item.userId === currentUser.id;
+              prepItemsHtml += `
+                <div data-item-id="${item.id}" onclick="selectPrepItem('${item.id}', this)" 
+                     class="flex items-center justify-between bg-white rounded p-2 ${canDelete ? 'cursor-pointer hover:bg-gray-50' : ''}">
+                  <div class="flex-1 text-sm">• ${escapeHtml(item.text)}</div>
+                  ${canDelete ? `<span class="delete-text text-red-500 text-xs px-2 hidden" onclick="deletePrepItem('${item.id}', '${item.userId}', event)">삭제</span>` : ''}
+                </div>`;
+            }
+            prepItemsHtml += '</div>';
+          } else {
+            prepItemsHtml += '<div class="text-sm text-gray-400 text-center py-2 mb-3">아직 준비항목이 없습니다</div>';
+          }
+          
+          if(isMe){
+            prepItemsHtml += `
+              <div class="space-y-2">
+                <textarea id="prepInput-${user.id}" maxlength="2000" placeholder="준비항목 입력... (최대 2000자)" 
+                          class="w-full px-3 py-2 border rounded-lg text-sm resize-none" rows="2" 
+                          oninput="document.getElementById('charCount-${user.id}').textContent=this.value.length"></textarea>
+                <div class="flex justify-between items-center">
+                  <span class="text-xs text-gray-500"><span id="charCount-${user.id}">0</span>/2000</span>
+                  <button onclick="addPrepItem('${user.id}')" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-medium">추가</button>
+                </div>
+              </div>`;
+          } else {
+            prepItemsHtml += '<div class="text-xs text-gray-500 italic">다른 사람의 준비항목입니다</div>';
+          }
+          
+          prepItemsHtml += '</div>';
+        }
+        
+        prepItemsHtml += '</div>';
 
         campingDetailHtml = `
           <div class="fixed inset-0 bg-black/50 z-40 flex items-end" onclick="if(event.target===this)closeCampingDetail()">
@@ -566,6 +682,7 @@
                 </div>
                 
                 ${otherNotesHtml}
+                ${prepItemsHtml}
                 
                 <div class="flex gap-2">
                   ${editButtonHtml}
@@ -682,6 +799,12 @@
       db.collection('campingNotes').onSnapshot(snap=>{ 
         campingNotes=[]; 
         snap.forEach(doc=>{ campingNotes.push(Object.assign({ id: doc.id }, doc.data())); }); 
+        render(); 
+      });
+
+      db.collection('prepItems').onSnapshot(snap=>{ 
+        prepItems=[]; 
+        snap.forEach(doc=>{ prepItems.push(Object.assign({ id: doc.id }, doc.data())); }); 
         render(); 
       });
     }
