@@ -16,19 +16,43 @@
   <style>
     * { -webkit-tap-highlight-color: transparent; }
     body { overscroll-behavior-y: contain; }
-    @keyframes slideUp { from { transform: translateY(100%);} to { transform: translateY(0);} }
+    
+    @keyframes slideUp { 
+      from { transform: translateY(100%);} 
+      to { transform: translateY(0);} 
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-20px); }
+    }
+    
+    @keyframes sway {
+      0%, 100% { transform: rotate(-3deg); }
+      50% { transform: rotate(3deg); }
+    }
+    
+    @keyframes flicker {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.1); }
+    }
+    
     .animate-slide-up { animation: slideUp 0.3s ease-out; }
+    .animate-bounce { animation: bounce 2s ease-in-out infinite; }
+    .animate-sway { animation: sway 3s ease-in-out infinite; }
+    .animate-flicker { animation: flicker 1.5s ease-in-out infinite; }
+    
     input, textarea, select { font-size: 16px !important; }
 
-    /* 📅 일정등록 - 날짜입력 UI (붙는 문제 해결) */
+    /* 날짜입력 UI */
     .date-grid {
       display: grid;
       grid-template-columns: minmax(0,1fr) minmax(0,1fr);
-      gap: 1rem;                 /* 간격 확실히 */
+      gap: 1rem;
     }
     .date-input {
       width: 100%;
-      min-width: 150px;          /* 좌우 박스 폭 줄여 겹침 방지 */
+      min-width: 150px;
       display: block;
       padding: 0.7rem 0.8rem;
       font-size: 15px !important;
@@ -40,17 +64,27 @@
     }
     @media (max-width: 360px) { .date-grid { grid-template-columns: 1fr; } }
 
-    /* sticky 헤더 식별용 */
+    /* sticky 헤더 */
     .app-header { position: sticky; top: 0; z-index: 10; }
+    
+    /* 로딩 화면 */
+    .loading-screen {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
   </style>
 </head>
 <body class="bg-gray-50">
   <div id="app"></div>
 
   <script>
-    /* =========================
-       Firebase 설정 (camp-4cd5d)
-       ========================= */
+    /* Firebase 설정 */
     const firebaseConfig = {
       apiKey: "AIzaSyAu15qibhSy3rBEUYXOxRCqoBf-BlpLtJg",
       authDomain: "camp-4cd5d.firebaseapp.com",
@@ -62,9 +96,7 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
-    /* =========================
-       상수/상태
-       ========================= */
+    /* 상수/상태 */
     const holidays = {
       '2025-01-01': '신정','2025-01-28': '설날 연휴','2025-01-29': '설날','2025-01-30': '설날 연휴','2025-03-01': '삼일절','2025-05-05': '어린이날','2025-05-06': '대체공휴일','2025-06-06': '현충일','2025-08-15': '광복절','2025-10-03': '개천절','2025-10-05': '추석 연휴','2025-10-06': '추석','2025-10-07': '추석 연휴','2025-10-08': '대체공휴일','2025-10-09': '한글날','2025-12-25': '크리스마스',
       '2026-01-01': '신정','2026-02-16': '설날 연휴','2026-02-17': '설날','2026-02-18': '설날 연휴','2026-03-01': '삼일절','2026-03-02': '대체공휴일','2026-05-05': '어린이날','2026-05-24': '부처님오신날','2026-05-25': '대체공휴일','2026-06-06': '현충일','2026-08-15': '광복절','2026-09-24': '추석 연휴','2026-09-25': '추석','2026-09-26': '추석 연휴','2026-10-03': '개천절','2026-10-05': '대체공휴일','2026-10-09': '한글날','2026-12-25': '크리스마스'
@@ -75,6 +107,7 @@
     let allUsers = [];
     let schedules = [];
     let campings = [];
+    let campingNotes = []; // 메모 데이터
     let showModal = false;
     let selectedDate = null;
     let showCampingDetail = false;
@@ -84,13 +117,11 @@
     let currentMonth = new Date();
     let showLoginModal = false;
     let isSignUp = false;
+    let isLoading = false; // 로딩 상태
 
-    // 오늘로 스크롤 플래그
     let needScrollToToday = false;
 
-    /* =========================
-       유틸
-       ========================= */
+    /* 유틸 */
     const normalizePhone = (v)=> (v||'').replace(/\D/g,'');
     function formatDate(date){ const y=date.getFullYear(); const m=String(date.getMonth()+1).padStart(2,'0'); const d=String(date.getDate()).padStart(2,'0'); return `${y}-${m}-${d}`; }
     function escapeHtml(text){ if(!text) return ''; return String(text).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
@@ -98,20 +129,19 @@
     function getDaysDiffInclusive(startDate, endDate){ const s=new Date(startDate); const e=new Date(endDate); return Math.floor((e - s)/(1000*60*60*24)) + 1; }
     function getMonthYear(){ return `${currentMonth.getFullYear()}년 ${currentMonth.getMonth()+1}월`; }
 
-    /* 오늘 카드 최상단에 오도록 스크롤 */
+    /* 오늘 카드로 스크롤 */
     function scrollTodayIntoView() {
       const todayId = `day-${formatDate(new Date())}`;
       const el = document.getElementById(todayId);
       if (!el) return;
       el.scrollIntoView({ behavior: 'auto', block: 'start' });
 
-      // sticky 헤더 높이만큼 보정
       const header = document.querySelector('.app-header');
       const offset = header ? header.getBoundingClientRect().height + 8 : 0;
       if (offset) window.scrollBy(0, -offset);
     }
 
-    /* Today 버튼 동작 */
+    /* Today 버튼 */
     window.goToToday = function() {
       currentMonth = new Date();
       needScrollToToday = true;
@@ -134,7 +164,7 @@
       const phone = normalizePhone(phoneRaw);
 
       if(!teamName || !phone){ alert('팀 이름과 휴대폰 번호를 모두 입력해주세요.'); return; }
-      const phoneRegex = /^01[0-9]{8,9}$/; // 숫자만
+      const phoneRegex = /^01[0-9]{8,9}$/;
       if(!phoneRegex.test(phone)){ alert('올바른 휴대폰 번호 형식이 아닙니다.'); return; }
 
       if(isSignUp){
@@ -151,10 +181,16 @@
           localStorage.setItem('currentUser', JSON.stringify(currentUser));
           showLoginModal=false; isSignUp=false;
           allUsers.push(currentUser);
-          // 로그인 후: 오늘 보이도록
-          needScrollToToday = true;
-          init();
+          
+          // 로딩 화면 표시
+          isLoading = true;
           render();
+          setTimeout(() => {
+            isLoading = false;
+            needScrollToToday = true;
+            init();
+            render();
+          }, 2000);
         }).catch(err=>{ if(err!=='dup-phone' && err!=='dup-name'){ alert('회원가입 중 오류가 발생했습니다: '+err); } });
       } else {
         db.collection('users').where('name','==',teamName).where('phone','==',phone).limit(1).get().then(snap=>{
@@ -163,10 +199,16 @@
           currentUser = { id: doc.id, name: u.name, phone: u.phone, colorIndex: u.colorIndex };
           localStorage.setItem('currentUser', JSON.stringify(currentUser));
           showLoginModal=false;
-          // 로그인 후: 오늘 보이도록
-          needScrollToToday = true;
-          init();
+          
+          // 로딩 화면 표시
+          isLoading = true;
           render();
+          setTimeout(() => {
+            isLoading = false;
+            needScrollToToday = true;
+            init();
+            render();
+          }, 2000);
         }).catch(err=>{ alert('로그인 중 오류가 발생했습니다: '+err.message); });
       }
     };
@@ -212,11 +254,45 @@
       Promise.all(delOps).then(()=>{ showModal=false; selectedDate=null; render(); });
     };
 
-    /* 놀러갈곳(캠핑) 상세/등록 */
-    window.openCampingDetail = function(campingId){ selectedCamping = campings.find(c=>c.id===campingId); if(selectedCamping){ showCampingDetail=true; showModal=false; render(); } };
+    /* 놀러갈곳 상세/등록 */
+    window.openCampingDetail = function(campingId){ 
+      selectedCamping = campings.find(c=>c.id===campingId); 
+      if(selectedCamping){ 
+        showCampingDetail=true; 
+        showModal=false; 
+        render(); 
+      } 
+    };
+    
     window.closeCampingDetail = function(){ showCampingDetail=false; selectedCamping=null; render(); };
     window.openCampingModal = function(dateStr, campingId){ editingCamping = campingId ? campings.find(c=>c.id===campingId) : null; selectedDate=dateStr; showCampingModal=true; showCampingDetail=false; render(); };
     window.closeCampingModal = function(){ showCampingModal=false; editingCamping=null; render(); };
+
+    /* 메모 저장 */
+    window.saveNote = function() {
+      if (!selectedCamping || !currentUser) return;
+      const noteText = document.getElementById('campingNote').value.trim();
+      
+      const existing = campingNotes.find(n => n.campingId === selectedCamping.id && n.userId === currentUser.id);
+      const data = {
+        campingId: selectedCamping.id,
+        userId: currentUser.id,
+        userName: currentUser.name,
+        note: noteText,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+
+      if (existing) {
+        db.collection('campingNotes').doc(existing.id).update(data).then(() => {
+          alert('메모가 저장되었습니다.');
+        });
+      } else {
+        data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+        db.collection('campingNotes').add(data).then(() => {
+          alert('메모가 저장되었습니다.');
+        });
+      }
+    };
 
     window.saveCamping = function(){
       const name = document.getElementById('campingName').value.trim();
@@ -244,6 +320,21 @@
     /* 렌더링 */
     function render(){
       const app = document.getElementById('app');
+
+      // 로딩 화면
+      if(isLoading){
+        app.innerHTML = `
+        <div class="loading-screen">
+          <div class="text-center mb-8">
+            <div class="text-8xl mb-4 animate-sway">🏕️</div>
+            <div class="text-6xl mb-4 animate-flicker">🔥</div>
+            <div class="text-5xl animate-bounce">🚶</div>
+          </div>
+          <h2 class="text-2xl font-bold text-white mb-2">잠시만 기다려주세요...</h2>
+          <p class="text-white/80">일정을 불러오는 중입니다</p>
+        </div>`;
+        return;
+      }
 
       // 로그인 화면
       if(!currentUser){
@@ -388,6 +479,7 @@
       let modalHtml='';
       if(showModal){
         const mySchedule = schedules.find(s=>s.date===selectedDate && s.userId===currentUser.id);
+        let modalContent
         let modalContent='';
         if(mySchedule){
           modalContent = `
@@ -423,7 +515,7 @@
           </div>`;
       }
 
-      // 상세 모달
+      // 상세 모달 (메모 기능 포함)
       let campingDetailHtml='';
       if(showCampingDetail && selectedCamping){
         const addressHtml = selectedCamping.address ? `<div>📍 ${escapeHtml(selectedCamping.address)}</div>` : '';
@@ -432,6 +524,21 @@
         const editButtonHtml = selectedCamping.createdBy === currentUser.id ? `<button onclick="openCampingModal('${selectedCamping.startDate}', '${selectedCamping.id}')" class="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium">수정</button>` : '';
         const totalDays = getDaysDiffInclusive(selectedCamping.startDate, selectedCamping.endDate);
         const daysHtml = totalDays>1 ? `<div class="text-sm text-gray-700">총 ${totalDays}일</div>` : '';
+
+        // 내 메모 가져오기
+        const myNote = campingNotes.find(n => n.campingId === selectedCamping.id && n.userId === currentUser.id);
+        const noteText = myNote ? myNote.note : '';
+
+        // 다른 사람들 메모
+        const otherNotes = campingNotes.filter(n => n.campingId === selectedCamping.id && n.userId !== currentUser.id);
+        let otherNotesHtml = '';
+        if(otherNotes.length > 0){
+          otherNotesHtml = '<div class="bg-blue-50 rounded-lg p-4"><h5 class="font-medium mb-2">💬 다른 멤버 메모</h5><div class="space-y-2">';
+          for(const note of otherNotes){
+            otherNotesHtml += `<div class="text-sm"><span class="font-semibold">${escapeHtml(note.userName)}:</span> ${escapeHtml(note.note)}</div>`;
+          }
+          otherNotesHtml += '</div></div>';
+        }
 
         campingDetailHtml = `
           <div class="fixed inset-0 bg-black/50 z-40 flex items-end" onclick="if(event.target===this)closeCampingDetail()">
@@ -451,6 +558,15 @@
                   </div>
                 </div>
                 ${infoHtml}
+                
+                <div class="bg-green-50 rounded-lg p-4">
+                  <h5 class="font-medium mb-2">✏️ 내 메모</h5>
+                  <textarea id="campingNote" placeholder="개인 메모를 남겨보세요..." class="w-full px-3 py-2 border rounded-lg resize-none" rows="3">${escapeHtml(noteText)}</textarea>
+                  <button onclick="saveNote()" class="mt-2 w-full py-2 bg-green-600 text-white rounded-lg font-medium">메모 저장</button>
+                </div>
+                
+                ${otherNotesHtml}
+                
                 <div class="flex gap-2">
                   ${editButtonHtml}
                   <button onclick="closeCampingDetail()" class="flex-1 py-3 border border-gray-300 rounded-lg font-medium">닫기</button>
@@ -472,9 +588,9 @@
               </div>
               <div class="flex items-center justify-between">
                 <div class="flex items-center gap-2">
-                  <button onclick="changeMonth(-1)" class="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30">←</button>
-                  <h2 class="text-xl font-bold">${getMonthYear()}</h2>
-                  <button onclick="changeMonth(1)" class="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30">→</button>
+                  <button onclick="changeMonth(-1)" class="px-2 py-1 bg-white/20 rounded text-lg hover:bg-white/30">←</button>
+                  <h2 class="text-lg font-bold min-w-[120px] text-center">${getMonthYear()}</h2>
+                  <button onclick="changeMonth(1)" class="px-2 py-1 bg-white/20 rounded text-lg hover:bg-white/30">→</button>
                 </div>
                 <button onclick="goToToday()" class="px-3 py-1.5 bg-white text-green-700 rounded-lg text-sm font-semibold shadow-sm active:opacity-80">Today</button>
               </div>
@@ -497,7 +613,7 @@
       }
     }
 
-    // 등록/수정 모달 렌더(함수로 분리: 가독성)
+    // 등록/수정 모달
     function renderCampingModal(){
       const editing = editingCamping;
       const deleteButtonHtml = (editing && editing.createdBy===currentUser.id)
@@ -551,8 +667,23 @@
 
     /* 실시간 구독 & 부팅 */
     function init(){
-      db.collection('schedules').onSnapshot(snap=>{ schedules=[]; snap.forEach(doc=>{ schedules.push(Object.assign({ id: doc.id }, doc.data())); }); render(); });
-      db.collection('campings').onSnapshot(snap=>{ campings=[]; snap.forEach(doc=>{ campings.push(Object.assign({ id: doc.id }, doc.data())); }); render(); });
+      db.collection('schedules').onSnapshot(snap=>{ 
+        schedules=[]; 
+        snap.forEach(doc=>{ schedules.push(Object.assign({ id: doc.id }, doc.data())); }); 
+        render(); 
+      });
+      
+      db.collection('campings').onSnapshot(snap=>{ 
+        campings=[]; 
+        snap.forEach(doc=>{ campings.push(Object.assign({ id: doc.id }, doc.data())); }); 
+        render(); 
+      });
+      
+      db.collection('campingNotes').onSnapshot(snap=>{ 
+        campingNotes=[]; 
+        snap.forEach(doc=>{ campingNotes.push(Object.assign({ id: doc.id }, doc.data())); }); 
+        render(); 
+      });
     }
 
     // 저장된 로그인 복원 + 오늘 최상단
@@ -561,13 +692,18 @@
       if(saved){
         try{
           currentUser = JSON.parse(saved);
-          needScrollToToday = true;
-          init();
+          isLoading = true;
           render();
+          setTimeout(() => {
+            isLoading = false;
+            needScrollToToday = true;
+            init();
+            render();
+          }, 1500);
           return;
         }catch(e){ localStorage.removeItem('currentUser'); }
       }
-      render(); // 로그인 화면
+      render();
     })();
 
     // 유저 목록 캐시
