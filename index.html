@@ -24,11 +24,11 @@
     .date-grid {
       display: grid;
       grid-template-columns: minmax(0,1fr) minmax(0,1fr);
-      gap: 1rem;                 /* 간격 넉넉히 */
+      gap: 1rem;
     }
     .date-input {
       width: 100%;
-      min-width: 150px;          /* 좌우 박스 폭 줄여 겹침 방지 */
+      min-width: 150px;
       display: block;
       padding: 0.7rem 0.8rem;
       font-size: 15px !important;
@@ -40,13 +40,16 @@
     }
     @media (max-width: 360px) { .date-grid { grid-template-columns: 1fr; } }
 
-    /* 스플래시(로딩) 픽토그램 애니메이션 */
-    @keyframes flicker { 
-      0%{opacity:0.9; transform:translateY(0) scale(1);} 
-      50%{opacity:1; transform:translateY(-2px) scale(1.06);} 
-      100%{opacity:0.9; transform:translateY(0) scale(0.98);} 
+    /* AI 스타일 스플래시 애니메이션 */
+    @keyframes pulseGlow {
+      0% { opacity: 0.7; filter: drop-shadow(0 0 6px rgba(59,130,246,.4)); }
+      50% { opacity: 1; filter: drop-shadow(0 0 16px rgba(16,185,129,.6)); }
+      100% { opacity: 0.7; filter: drop-shadow(0 0 6px rgba(59,130,246,.4)); }
     }
-    .fire { animation: flicker 1.1s ease-in-out infinite; transform-origin:center bottom; }
+    .ai-blob { animation: pulseGlow 1.6s ease-in-out infinite; }
+
+    /* 스크롤 보정용(오늘 카드 최상단 보이기) */
+    .app-header { position: sticky; top: 0; z-index: 10; }
   </style>
 </head>
 <body class="bg-gray-50">
@@ -90,11 +93,13 @@
     let showLoginModal = false;
     let isSignUp = false;
 
-    // 스크롤 관련 플래그 (오늘 카드 최상단 정렬)
+    // 오늘로 스크롤 플래그
     let needScrollToToday = false;
 
     // 스플래시 on/off
     let showSplash = false;
+    let _splashTimer = null;
+    let _splashHardKill = null;
 
     /* =========================
        유틸
@@ -112,43 +117,49 @@
       const el = document.getElementById(todayId);
       if (!el) return;
 
-      // 먼저 보이도록 스크롤
       el.scrollIntoView({ behavior: 'auto', block: 'start' });
 
-      // sticky 헤더 높이만큼 보정 (있으면)
-      const header = document.querySelector('.sticky.top-0');
+      // sticky 헤더 높이만큼 보정
+      const header = document.querySelector('.app-header');
       const offset = header ? header.getBoundingClientRect().height + 8 : 0;
       if (offset) window.scrollBy(0, -offset);
     }
 
-    /* Today 버튼 동작: 오늘 달로 이동 + 최상단 정렬 */
+    /* Today 버튼 동작 */
     window.goToToday = function() {
       currentMonth = new Date();
       needScrollToToday = true;
       render();
     };
 
-    /* =========================
-       월 이동
-       ========================= */
+    /* 월 이동 */
     window.changeMonth = function(delta){ currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+delta, 1); render(); };
 
-    /* =========================
-       인증 모달
-       ========================= */
+    /* 인증 모달 */
     window.openLoginModal = function(){ showLoginModal=true; isSignUp=false; render(); };
     window.openSignUpModal = function(){ showLoginModal=true; isSignUp=true; render(); };
     window.closeLoginModal = function(){ showLoginModal=false; isSignUp=false; render(); };
     window.toggleAuthMode = function(){ isSignUp=!isSignUp; render(); };
 
-    /* =========================
-       로그인/회원가입 (서버 질의 + 전화번호 정규화)
-       ========================= */
-    function showLoadingSplash(cb){
+    /* 스플래시 표시(안전장치 포함) */
+    function startSplash(next){
+      clearTimeout(_splashTimer); clearTimeout(_splashHardKill);
       showSplash = true; render();
-      setTimeout(()=>{ showSplash=false; cb&&cb(); render(); }, 2000);
+      // 정상 종료 2초
+      _splashTimer = setTimeout(()=>{
+        showSplash=false; render();
+        next && next();
+      }, 2000);
+      // 어떤 경우든 4초 강제 종료
+      _splashHardKill = setTimeout(()=>{
+        if(showSplash){
+          showSplash=false; render();
+          next && next();
+        }
+      }, 4000);
     }
 
+    /* 로그인/회원가입 */
     window.handleAuth = function(){
       const teamName = document.getElementById('authTeamName').value.trim();
       const phoneRaw = document.getElementById('authPhone').value.trim();
@@ -174,7 +185,7 @@
           allUsers.push(currentUser);
           // 로그인 후: 오늘 보이도록
           needScrollToToday = true;
-          showLoadingSplash(()=>{ init(); });
+          startSplash(()=>{ init(); });
         }).catch(err=>{ if(err!=='dup-phone' && err!=='dup-name'){ alert('회원가입 중 오류가 발생했습니다: '+err); } });
       } else {
         db.collection('users').where('name','==',teamName).where('phone','==',phone).limit(1).get().then(snap=>{
@@ -183,18 +194,15 @@
           currentUser = { id: doc.id, name: u.name, phone: u.phone, colorIndex: u.colorIndex };
           localStorage.setItem('currentUser', JSON.stringify(currentUser));
           showLoginModal=false;
-          // 로그인 후: 오늘 보이도록
           needScrollToToday = true;
-          showLoadingSplash(()=>{ init(); });
+          startSplash(()=>{ init(); });
         }).catch(err=>{ alert('로그인 중 오류가 발생했습니다: '+err.message); });
       }
     };
 
     window.logout = function(){ currentUser=null; localStorage.removeItem('currentUser'); render(); };
 
-    /* =========================
-       상태 모달(참석/보류/불참)
-       ========================= */
+    /* 상태 모달 */
     window.openAddModal = function(dateStr){ selectedDate=dateStr; showModal=true; showCampingDetail=false; render(); };
     window.closeModal = function(){ showModal=false; selectedDate=null; render(); };
 
@@ -233,9 +241,7 @@
       Promise.all(delOps).then(()=>{ showModal=false; selectedDate=null; render(); });
     };
 
-    /* =========================
-       놀러갈곳(캠핑) 상세/등록
-       ========================= */
+    /* 놀러갈곳(캠핑) 상세/등록 */
     window.openCampingDetail = function(campingId){ selectedCamping = campings.find(c=>c.id===campingId); if(selectedCamping){ showCampingDetail=true; showModal=false; render(); } };
     window.closeCampingDetail = function(){ showCampingDetail=false; selectedCamping=null; render(); };
     window.openCampingModal = function(dateStr, campingId){ editingCamping = campingId ? campings.find(c=>c.id===campingId) : null; selectedDate=dateStr; showCampingModal=true; showCampingDetail=false; render(); };
@@ -264,41 +270,60 @@
       db.collection('campings').doc(campingId).delete().then(()=>{ showCampingDetail=false; showCampingModal=false; selectedCamping=null; editingCamping=null; render(); });
     };
 
-    /* =========================
-       렌더링
-       ========================= */
+    /* 렌더링 */
     function render(){
       const app = document.getElementById('app');
 
-      // 스플래시 (2초) — 픽토그램: 텐트/모닥불/사람
+      // 스플래시: AI 스타일(네온 그라디언트 + 지오메트릭 라인)
       if (showSplash) {
         app.innerHTML = `
           <div class="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-green-400 to-blue-400">
-            <div class="relative w-80 h-80 md:w-96 md:h-96 bg-white/10 rounded-2xl flex items-center justify-center shadow-lg">
-              <svg viewBox="0 0 200 200" class="w-72 h-72">
-                <!-- 땅 -->
-                <rect x="0" y="150" width="200" height="50" fill="#2e7d32" opacity="0.6"/>
-                <!-- 텐트 -->
-                <polygon points="60,150 100,70 140,150" fill="#ffd54f" stroke="#fbc02d" stroke-width="3"/>
-                <line x1="100" y1="70" x2="100" y2="150" stroke="#f9a825" stroke-width="3" />
-                <!-- 사람 (좌) -->
-                <circle cx="45" cy="135" r="8" fill="#5d4037"/>
-                <rect x="40" y="142" width="10" height="12" rx="2" fill="#8d6e63"/>
-                <!-- 사람 (우) -->
-                <circle cx="155" cy="135" r="8" fill="#4e342e"/>
-                <rect x="150" y="142" width="10" height="12" rx="2" fill="#795548"/>
-                <!-- 모닥불 -->
-                <g transform="translate(100,150)">
-                  <line x1="-10" y1="10" x2="10" y2="-2" stroke="#6d4c41" stroke-width="6" stroke-linecap="round"/>
-                  <line x1="-10" y1="-2" x2="10" y2="10" stroke="#6d4c41" stroke-width="6" stroke-linecap="round"/>
-                  <g class="fire">
-                    <path d="M0 -28 C -10 -10, 10 -10, 0 0 C 15 -6, 8 -18, 18 -8 C 18 -18, 8 -24, 0 -28 Z" fill="#ff8a65"/>
-                    <path d="M0 -20 C -6 -10, 6 -10, 0 -2 C 8 -6, 5 -12, 10 -8 C 10 -12, 6 -16, 0 -20 Z" fill="#ffb74d"/>
-                  </g>
+            <div class="relative w-[22rem] h-[22rem] md:w-[26rem] md:h-[26rem] bg-white/10 rounded-3xl flex items-center justify-center shadow-2xl overflow-hidden">
+              <svg viewBox="0 0 400 400" class="w-full h-full">
+                <defs>
+                  <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stop-color="#3b82f6"/>
+                    <stop offset="100%" stop-color="#10b981"/>
+                  </linearGradient>
+                  <radialGradient id="g2" cx="50%" cy="40%" r="60%">
+                    <stop offset="0%" stop-color="#a78bfa" stop-opacity="0.9"/>
+                    <stop offset="100%" stop-color="#a78bfa" stop-opacity="0"/>
+                  </radialGradient>
+                </defs>
+
+                <!-- 그라디언트 블롭 -->
+                <circle cx="200" cy="180" r="140" fill="url(#g2)" class="ai-blob"/>
+
+                <!-- 지오메트릭 라인 (AI 회로 느낌) -->
+                <g stroke="url(#g1)" stroke-width="2" opacity="0.8">
+                  <path d="M60 300 C120 260, 170 240, 210 200" fill="none"/>
+                  <circle cx="210" cy="200" r="4" fill="#22d3ee"/>
+                  <path d="M210 200 C260 160, 300 140, 340 120" fill="none"/>
+                  <circle cx="340" cy="120" r="4" fill="#22d3ee"/>
+
+                  <path d="M80 100 L140 160" fill="none"/>
+                  <circle cx="80" cy="100" r="3" fill="#22d3ee"/>
+                  <circle cx="140" cy="160" r="3" fill="#22d3ee"/>
+
+                  <path d="M260 280 L320 320" fill="none"/>
+                  <circle cx="260" cy="280" r="3" fill="#22d3ee"/>
+                  <circle cx="320" cy="320" r="3" fill="#22d3ee"/>
+                </g>
+
+                <!-- 텐트 실루엣 (미니멀) -->
+                <g transform="translate(120,200)">
+                  <polygon points="0,100 80,0 160,100" fill="rgba(255,223,99,0.9)" stroke="rgba(252,211,77,0.9)" stroke-width="4"/>
+                  <line x1="80" y1="0" x2="80" y2="100" stroke="rgba(254,215,170,0.9)" stroke-width="4"/>
+                </g>
+
+                <!-- 네온 불빛 (모닥불 느낌) -->
+                <g transform="translate(200,290)" class="ai-blob">
+                  <circle cx="0" cy="0" r="16" fill="#fb923c" opacity="0.9"/>
+                  <circle cx="0" cy="0" r="28" fill="#fb923c" opacity="0.2"/>
                 </g>
               </svg>
             </div>
-            <p class="mt-6 text-white/90">로딩 중...</p>
+            <p class="mt-6 text-white/90 font-semibold tracking-wide">로딩 중...</p>
           </div>`;
         return;
       }
@@ -522,7 +547,7 @@
       const myColor = colorPalette[currentUser.colorIndex];
       app.innerHTML = `
         <div class="min-h-screen pb-20">
-          <div class="sticky top-0 z-10 bg-green-600 text-white shadow-lg">
+          <div class="app-header bg-green-600 text-white shadow-lg">
             <div class="p-4">
               <div class="flex items-center justify-between mb-3">
                 <div><h1 class="text-2xl font-bold">🏕️ 같이 놀러가자</h1></div>
@@ -548,39 +573,35 @@
           ${campingModalHtml}
         </div>`;
 
-      // 렌더 직후 한번만 오늘로 스크롤
+      // 렌더 직후 오늘로 스크롤
       if (needScrollToToday) {
         needScrollToToday = false;
-        setTimeout(scrollTodayIntoView, 0);
+        // DOM 안정화 이후 스크롤(두 번 보장)
+        requestAnimationFrame(()=>{ scrollTodayIntoView(); requestAnimationFrame(scrollTodayIntoView); });
       }
     }
 
-    /* =========================
-       실시간 구독 & 부팅
-       ========================= */
+    /* 실시간 구독 & 부팅 */
     function init(){
-      // 구독 시작 후 첫 진입 때 오늘 최상단 정렬하도록 플래그 유지
       db.collection('schedules').onSnapshot(snap=>{ schedules=[]; snap.forEach(doc=>{ schedules.push(Object.assign({ id: doc.id }, doc.data())); }); render(); });
       db.collection('campings').onSnapshot(snap=>{ campings=[]; snap.forEach(doc=>{ campings.push(Object.assign({ id: doc.id }, doc.data())); }); render(); });
     }
 
-    // 저장된 로그인 복원 + (요청) 오늘 최상단 디폴트
+    // 저장된 로그인 복원 + 스플래시
     (function boot(){
       const saved = localStorage.getItem('currentUser');
-      if(saved){ 
-        try{ 
-          currentUser = JSON.parse(saved); 
-          needScrollToToday = true; 
-          // 앱 시작 시 스플래시 노출 후 init
-          showSplash = true; render();
-          setTimeout(()=>{ showSplash=false; init(); render(); }, 2000);
+      if(saved){
+        try{
+          currentUser = JSON.parse(saved);
+          needScrollToToday = true;
+          startSplash(()=>{ init(); });
           return;
         }catch(e){ localStorage.removeItem('currentUser'); }
       }
       render(); // 로그인 화면
     })();
 
-    // 유저 목록 캐시 (표시/검증용)
+    // 유저 목록 캐시
     db.collection('users').onSnapshot(snapshot=>{
       allUsers = [];
       snapshot.forEach(doc=>{
