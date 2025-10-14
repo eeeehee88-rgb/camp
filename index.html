@@ -16,6 +16,7 @@
   <style>
     * { -webkit-tap-highlight-color: transparent; }
     body { overscroll-behavior-y: contain; }
+
     @keyframes slideUp { from { transform: translateY(100%);} to { transform: translateY(0);} }
     .animate-slide-up { animation: slideUp 0.3s ease-out; }
     input, textarea, select { font-size: 16px !important; }
@@ -34,33 +35,34 @@
       font-size: 15px !important;
     }
     input[type="date"]::-webkit-date-and-time-value { min-height: 1.6em; }
+
     @media (max-width: 420px) {
       .date-grid { gap: 0.9rem; }
       .date-input { min-width: 140px; padding: 0.6rem 0.7rem; }
     }
     @media (max-width: 360px) { .date-grid { grid-template-columns: 1fr; } }
 
-    /* 멀티데이 카드 링 색상 (캠핑 카드 톤) */
-    :root { --camp-ring: #fde68a; } /* border-yellow-200 */
-    .multi-day-ring {
-      box-shadow: 0 0 0 3px var(--camp-ring);
-    }
-
-    /* 헤더 고정 */
-    .app-header { position: sticky; top: 0; z-index: 10; }
+    /* 📍 멀티데이 카드 테두리 색상 (캠핑 카드 색상과 동일) */
+    :root { --camp-ring: #fde68a; } /* Tailwind border-yellow-200 */
+    .multi-day-ring { box-shadow: 0 0 0 3px var(--camp-ring); }
 
     /* 월 변경 화살표 버튼 크기 축소 */
     .month-btn {
       padding: 0.25rem 0.5rem;
-      font-size: 0.9rem;
+      font-size: 0.85rem;
       line-height: 1;
+      border-radius: 6px;
     }
+
+    /* 고정 헤더 */
+    .app-header { position: sticky; top: 0; z-index: 10; }
   </style>
 </head>
 <body class="bg-gray-50">
   <div id="app"></div>
 
   <script>
+    /* ========== Firebase 설정 ========== */
     const firebaseConfig = {
       apiKey: "AIzaSyAu15qibhSy3rBEUYXOxRCqoBf-BlpLtJg",
       authDomain: "camp-4cd5d.firebaseapp.com",
@@ -72,23 +74,34 @@
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
 
+    /* ========== 전역 상태 ========== */
     const colorPalette = ['#6366f1','#ec4899','#10b981','#f59e0b','#8b5cf6','#06b6d4','#f97316','#14b8a6','#a855f7','#ef4444','#3b82f6','#84cc16'];
     let currentUser=null, allUsers=[], schedules=[], campings=[];
     let showModal=false, selectedDate=null, showCampingDetail=false, selectedCamping=null, showCampingModal=false, editingCamping=null;
     let currentMonth=new Date(), showLoginModal=false, isSignUp=false;
     let needScrollToToday=false;
 
-    const normalizePhone = (v)=> (v||'').replace(/\D/g,'');
+    const normalizePhone=(v)=> (v||'').replace(/\\D/g,'');
     function formatDate(date){const y=date.getFullYear();const m=String(date.getMonth()+1).padStart(2,'0');const d=String(date.getDate()).padStart(2,'0');return `${y}-${m}-${d}`;}
     function escapeHtml(text){if(!text)return'';return String(text).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
 
     function getCampingForDateRange(dateStr){for(let c of campings){if(dateStr>=c.startDate && dateStr<=c.endDate)return c;}return null;}
     function getDaysDiffInclusive(s,e){return Math.floor((new Date(e)-new Date(s))/(1000*60*60*24))+1;}
     function getMonthYear(){return `${currentMonth.getFullYear()}년 ${currentMonth.getMonth()+1}월`;}
-    function scrollTodayIntoView(){const id=`day-${formatDate(new Date())}`;const el=document.getElementById(id);if(!el)return;el.scrollIntoView({behavior:'auto',block:'start'});const header=document.querySelector('.app-header');if(header)window.scrollBy(0,-(header.getBoundingClientRect().height+8));}
+
+    function scrollTodayIntoView(){
+      const id=`day-${formatDate(new Date())}`;
+      const el=document.getElementById(id);
+      if(!el)return;
+      el.scrollIntoView({behavior:'auto',block:'start'});
+      const header=document.querySelector('.app-header');
+      if(header)window.scrollBy(0,-(header.getBoundingClientRect().height+8));
+    }
+
     window.goToToday=()=>{currentMonth=new Date();needScrollToToday=true;render();};
     window.changeMonth=(d)=>{currentMonth=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+d,1);render();};
 
+    /* ========== 로그인 / 회원가입 ========== */
     window.openLoginModal=()=>{showLoginModal=true;isSignUp=false;render();};
     window.openSignUpModal=()=>{showLoginModal=true;isSignUp=true;render();};
     window.closeLoginModal=()=>{showLoginModal=false;isSignUp=false;render();};
@@ -98,71 +111,110 @@
       const team=document.getElementById('authTeamName').value.trim();
       const phone=normalizePhone(document.getElementById('authPhone').value.trim());
       if(!team||!phone)return alert('팀 이름과 휴대폰 번호를 입력해주세요.');
+
       if(isSignUp){
         db.collection('users').where('phone','==',phone).get().then(r=>{
           if(!r.empty)return alert('이미 가입된 번호입니다.');
           const colorIndex=allUsers.length%colorPalette.length;
           return db.collection('users').add({name:team,phone,colorIndex});
         }).then(doc=>{
-          if(!doc)return;currentUser={id:doc.id,name:team,phone,colorIndex:allUsers.length%colorPalette.length};
-          localStorage.setItem('currentUser',JSON.stringify(currentUser));showLoginModal=false;needScrollToToday=true;init();render();
+          if(!doc)return;
+          currentUser={id:doc.id,name:team,phone,colorIndex:allUsers.length%colorPalette.length};
+          localStorage.setItem('currentUser',JSON.stringify(currentUser));
+          showLoginModal=false;needScrollToToday=true;init();render();
         });
       }else{
         db.collection('users').where('name','==',team).where('phone','==',phone).get().then(s=>{
           if(s.empty)return alert('회원정보가 없습니다.');
-          const u=s.docs[0];currentUser={id:u.id,...u.data()};localStorage.setItem('currentUser',JSON.stringify(currentUser));
+          const u=s.docs[0];currentUser={id:u.id,...u.data()};
+          localStorage.setItem('currentUser',JSON.stringify(currentUser));
           showLoginModal=false;needScrollToToday=true;init();render();
         });
       }
     };
+
     window.logout=()=>{currentUser=null;localStorage.removeItem('currentUser');render();};
 
+    /* ========== 일정등록 ========== */
+    window.openCampingModal=(d)=>{selectedDate=d;showCampingModal=true;render();};
+    window.closeCampingModal=()=>{showCampingModal=false;render();};
+    window.saveCamping=()=>{
+      const name=document.getElementById('campingName').value.trim();
+      const start=document.getElementById('campingStartDate').value;
+      const end=document.getElementById('campingEndDate').value;
+      if(!name||!start||!end)return alert('이름과 날짜를 입력해주세요.');
+      const data={name,startDate:start,endDate:end,createdBy:currentUser.id};
+      db.collection('campings').add(data).then(()=>{showCampingModal=false;render();});
+    };
+
+    /* ========== 렌더링 ========== */
     function render(){
       const app=document.getElementById('app');
+
       if(!currentUser){
-        let modal='';if(showLoginModal){modal=`<div class='fixed inset-0 bg-black/60 flex items-end' onclick='if(event.target===this)closeLoginModal()'>
-        <div class='bg-white w-full rounded-t-3xl p-6 animate-slide-up'>
-        <h3 class='text-xl font-bold mb-4'>${isSignUp?'회원가입':'로그인'}</h3>
-        <input id='authTeamName' placeholder='팀 이름' class='w-full border p-2 rounded mb-3'>
-        <input id='authPhone' placeholder='휴대폰 번호' class='w-full border p-2 rounded mb-3'>
-        <button onclick='handleAuth()' class='w-full py-2 bg-green-600 text-white rounded-lg'>${isSignUp?'가입':'로그인'}</button>
-        </div></div>`;}
-        app.innerHTML=`<div class='min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-green-400 to-blue-400 p-6'>
-        <h1 class='text-5xl mb-4 text-white font-bold'>같이 놀러가자</h1>
-        <div class='w-full max-w-sm space-y-3'>
-        <button onclick='openLoginModal()' class='w-full py-4 bg-white rounded-xl font-bold text-green-600 shadow'>로그인</button>
-        <button onclick='openSignUpModal()' class='w-full py-4 bg-transparent border-2 border-white rounded-xl text-white font-bold'>회원가입</button></div>${modal}</div>`;return;
+        let modal='';
+        if(showLoginModal){
+          modal=`<div class='fixed inset-0 bg-black/60 flex items-end' onclick='if(event.target===this)closeLoginModal()'>
+          <div class='bg-white w-full rounded-t-3xl p-6 animate-slide-up'>
+            <h3 class='text-xl font-bold mb-4'>${isSignUp?'회원가입':'로그인'}</h3>
+            <input id='authTeamName' placeholder='팀 이름' class='w-full border p-2 rounded mb-3'>
+            <input id='authPhone' placeholder='휴대폰 번호' class='w-full border p-2 rounded mb-3'>
+            <button onclick='handleAuth()' class='w-full py-2 bg-green-600 text-white rounded-lg'>${isSignUp?'가입':'로그인'}</button>
+          </div></div>`;
+        }
+
+        app.innerHTML=`
+        <div class='min-h-screen flex flex-col items-center justify-center bg-gradient-to-b from-green-400 to-blue-400 p-6'>
+          <h1 class='text-5xl mb-4 text-white font-bold'>같이 놀러가자</h1>
+          <div class='w-full max-w-sm space-y-3'>
+            <button onclick='openLoginModal()' class='w-full py-4 bg-white rounded-xl font-bold text-green-600 shadow'>로그인</button>
+            <button onclick='openSignUpModal()' class='w-full py-4 bg-transparent border-2 border-white rounded-xl text-white font-bold'>회원가입</button>
+          </div>
+          ${modal}
+        </div>`;
+        return;
       }
 
       const first=new Date(currentMonth.getFullYear(),currentMonth.getMonth(),1);
       const last=new Date(currentMonth.getFullYear(),currentMonth.getMonth()+1,0);
       const dates=[];for(let d=new Date(first);d<=last;d.setDate(d.getDate()+1))dates.push(new Date(d));
       let html='';
+
       for(const date of dates){
         const dateStr=formatDate(date);
         const camping=getCampingForDateRange(dateStr);
         const isToday=dateStr===formatDate(new Date());
         const multi=(camping&&getDaysDiffInclusive(camping.startDate,camping.endDate)>1)?' multi-day-ring':'';
         const border=isToday?' border-green-500':' border-transparent';
-        html+=`<div id="day-${dateStr}" class="bg-white rounded-xl p-4 shadow-sm border-2${border}${multi}">
-        <div class="flex justify-between items-center mb-2"><div><div class="text-xl font-bold">${date.getDate()}</div></div>
-        <button onclick="openCampingModal('${dateStr}', null)" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">등록</button></div></div>`;
+        html+=`
+        <div id="day-${dateStr}" class="bg-white rounded-xl p-4 shadow-sm border-2${border}${multi}">
+          <div class="flex justify-between items-center mb-2">
+            <div class="text-xl font-bold">${date.getDate()}</div>
+            <button onclick="openCampingModal('${dateStr}', null)" class="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">등록</button>
+          </div>
+          ${camping?`<div class='bg-yellow-50 border border-yellow-200 rounded p-2 text-sm text-yellow-800'>🏕️ ${escapeHtml(camping.name)}</div>`:''}
+        </div>`;
       }
 
-      app.innerHTML=`<div class="min-h-screen">
-      <div class="app-header bg-green-600 text-white shadow-lg">
-      <div class="p-4 flex justify-between items-center">
-      <div class="flex items-center gap-2">
-        <button onclick="changeMonth(-1)" class="month-btn bg-white/20 rounded hover:bg-white/30">←</button>
-        <h2 class="text-xl font-bold">${getMonthYear()}</h2>
-        <button onclick="changeMonth(1)" class="month-btn bg-white/20 rounded hover:bg-white/30">→</button>
-      </div>
-      <button onclick="goToToday()" class="px-3 py-1 bg-white text-green-700 rounded text-sm font-semibold">Today</button>
-      </div></div><div class="p-3 space-y-3">${html}</div></div>`;
+      app.innerHTML=`
+      <div class="min-h-screen">
+        <div class="app-header bg-green-600 text-white shadow-lg">
+          <div class="p-4 flex justify-between items-center">
+            <div class="flex items-center gap-2">
+              <button onclick="changeMonth(-1)" class="month-btn bg-white/20 hover:bg-white/30">←</button>
+              <h2 class="text-xl font-bold">${getMonthYear()}</h2>
+              <button onclick="changeMonth(1)" class="month-btn bg-white/20 hover:bg-white/30">→</button>
+            </div>
+            <button onclick="goToToday()" class="px-3 py-1 bg-white text-green-700 rounded text-sm font-semibold">Today</button>
+          </div>
+        </div>
+        <div class="p-3 space-y-3">${html}</div>
+      </div>`;
 
       if(needScrollToToday){needScrollToToday=false;requestAnimationFrame(scrollTodayIntoView);}
     }
 
+    /* ========== Firestore 실시간 구독 ========== */
     function init(){
       db.collection('schedules').onSnapshot(s=>{schedules=[];s.forEach(d=>schedules.push({id:d.id,...d.data()}));render();});
       db.collection('campings').onSnapshot(s=>{campings=[];s.forEach(d=>campings.push({id:d.id,...d.data()}));render();});
