@@ -13,33 +13,33 @@
   <!-- Tailwind -->
   <script src="https://cdn.tailwindcss.com"></script>
 
-  <style>
-    * { -webkit-tap-highlight-color: transparent; }
-    body { overscroll-behavior-y: contain; }
-    @keyframes slideUp { from { transform: translateY(100%);} to { transform: translateY(0);} }
-    .animate-slide-up { animation: slideUp 0.3s ease-out; }
-    input, textarea, select { font-size: 16px !important; }
-
-    /* 날짜 입력: 모바일에서 확실히 분리 */
-    .date-grid {
-      display: grid;
-      grid-template-columns: minmax(0,1fr) minmax(0,1fr);
-      gap: 1rem;                 /* 간격 넉넉히 */
-    }
+  /* 날짜 입력: 모바일에서 확실히 분리 (간격 더 넓힘, 폭 줄임) */
+  .date-grid {
+    display: grid;
+    grid-template-columns: minmax(0,1fr) minmax(0,1fr);
+    gap: 1.4rem;               /* 간격 더 넓힘 */
+  }
+  .date-input {
+    width: 100%;
+    min-width: 130px;          /* 폭 더 줄임 */
+    display: block;
+    padding: 0.55rem 0.7rem;   /* 패딩 더 줄임 */
+    font-size: 15px !important;
+  }
+  input[type="date"]::-webkit-date-and-time-value {
+    min-height: 1.6em;
+  }
+  @media (max-width: 420px) {
+    .date-grid { gap: 1.2rem; }
     .date-input {
-      width: 100%;
-      min-width: 150px;          /* 좌우 폭 줄여 겹침 방지 */
-      display: block;
-      padding: 0.7rem 0.8rem;
-      font-size: 15px !important;
+      min-width: 120px;
+      padding: 0.5rem 0.6rem;
     }
-    input[type="date"]::-webkit-date-and-time-value { min-height: 1.6em; }
-    @media (max-width: 420px) {
-      .date-grid { gap: 0.9rem; }
-      .date-input { min-width: 140px; padding: 0.6rem 0.7rem; }
-    }
-    @media (max-width: 360px) { .date-grid { grid-template-columns: 1fr; } }
-  </style>
+  }
+  @media (max-width: 360px) {
+    .date-grid { grid-template-columns: 1fr; }
+  }
+</style>
 </head>
 <body class="bg-gray-50">
   <div id="app"></div>
