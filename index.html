@@ -1,37 +1,37 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <title>같이 놀러가자 🏕️</title>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <style>
-    * { -webkit-tap-highlight-color: transparent; }
-    body { overscroll-behavior-y: contain; }
-    @keyframes slideUp { from { transform: translateY(100%);} to { transform: translateY(0);} }
-    .animate-slide-up { animation: slideUp 0.3s ease-out; }
-    input, textarea, select { font-size: 16px !important; }
-    /* 날짜 입력 겹침 방지 */
-    .date-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .5rem; }
-    .date-input { width: 100%; min-width: 0; display: block; }
-    input[type="date"]::-webkit-date-and-time-value { min-height: 1.6em; }
-    @media (max-width: 360px) { .date-grid { grid-template-columns: 1fr; } }
-  </style>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+    <title>같이 놀러가자 🏕️</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        * { -webkit-tap-highlight-color: transparent; }
+        body { overscroll-behavior-y: contain; }
+        @keyframes slideUp { from { transform: translateY(100%);} to { transform: translateY(0);} }
+        .animate-slide-up { animation: slideUp 0.3s ease-out; }
+        input, textarea, select { font-size: 16px !important; }
+        /* (6) 날짜선택 버튼 겹침 방지 및 폭 조정 */
+        .date-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+        .date-input { width: 100%; min-width: 0; display: block; }
+        input[type="date"]::-webkit-date-and-time-value { min-height: 1.6em; }
+        @media (max-width: 360px) { .date-grid { grid-template-columns: 1fr; } }
+    </style>
 </head>
 <body class="bg-gray-50">
-  <div id="app"></div>
-  <script>
+<div id="app"></div>
+<script>
     // ===== Firebase =====
     const firebaseConfig = {
-      apiKey: "AIzaSyD_PbklnjhtT3u3UKLnVem7B9u4kYOIil8",
-      authDomain: "camping-79469.firebaseapp.com",
-      projectId: "camping-79469",
-      storageBucket: "camping-79469.firebasestorage.app",
-      messagingSenderId: "22038621532",
-      appId: "1:22038621532:web:e4b0f5e5b8bc5c4ede9b65"
+        apiKey: "AIzaSyD_PbklnjhtT3u3UKLnVem7B9u4kYOIil8",
+        authDomain: "camping-79469.firebaseapp.com",
+        projectId: "camping-79469",
+        storageBucket: "camping-79469.firebasestorage.app",
+        messagingSenderId: "22038621532",
+        appId: "1:22038621532:web:e4b0f5e5b8bc5c4ede9b65"
     };
     firebase.initializeApp(firebaseConfig);
     const db = firebase.firestore();
@@ -39,8 +39,8 @@
 
     // ===== 공휴일 =====
     const holidays = {
-      '2025-01-01': '신정','2025-01-28': '설날 연휴','2025-01-29': '설날','2025-01-30': '설날 연휴','2025-03-01': '삼일절','2025-05-05': '어린이날','2025-05-06': '대체공휴일','2025-06-06': '현충일','2025-08-15': '광복절','2025-10-03': '개천절','2025-10-05': '추석 연휴','2025-10-06': '추석','2025-10-07': '추석 연휴','2025-10-08': '대체공휴일','2025-10-09': '한글날','2025-12-25': '크리스마스',
-      '2026-01-01': '신정','2026-02-16': '설날 연휴','2026-02-17': '설날','2026-02-18': '설날 연휴','2026-03-01': '삼일절','2026-03-02': '대체공휴일','2026-05-05': '어린이날','2026-05-24': '부처님오신날','2026-05-25': '대체공휴일','2026-06-06': '현충일','2026-08-15': '광복절','2026-09-24': '추석 연휴','2026-09-25': '추석','2026-09-26': '추석 연휴','2026-10-03': '개천절','2026-10-05': '대체공휴일','2026-10-09': '한글날','2026-12-25': '크리스마스'
+        '2025-01-01': '신정','2025-01-28': '설날 연휴','2025-01-29': '설날','2025-01-30': '설날 연휴','2025-03-01': '삼일절','2025-05-05': '어린이날','2025-05-06': '대체공휴일','2025-06-06': '현충일','2025-08-15': '광복절','2025-10-03': '개천절','2025-10-05': '추석 연휴','2025-10-06': '추석','2025-10-07': '추석 연휴','2025-10-08': '대체공휴일','2025-10-09': '한글날','2025-12-25': '크리스마스',
+        '2026-01-01': '신정','2026-02-16': '설날 연휴','2026-02-17': '설날','2026-02-18': '설날 연휴','2026-03-01': '삼일절','2026-03-02': '대체공휴일','2026-05-05': '어린이날','2026-05-24': '부처님오신날','2026-05-25': '대체공휴일','2026-06-06': '현충일','2026-08-15': '광복절','2026-09-24': '추석 연휴','2026-09-25': '추석','2026-09-26': '추석 연휴','2026-10-03': '개천절','2026-10-05': '대체공휴일','2026-10-09': '한글날','2026-12-25': '크리스마스'
     };
 
     const colorPalette = ['#6366f1','#ec4899','#10b981','#f59e0b','#8b5cf6','#06b6d4','#f97316','#14b8a6','#a855f7','#ef4444','#3b82f6','#84cc16'];
@@ -59,467 +59,471 @@
     let currentMonth = new Date();
     let showLoginModal = false;
     let isSignUp = false;
-    let showSplash = false; // 2초 로딩
+
+    // (1) 새로고침/재방문 시 자동 로그인 유지: localStorage 선반영
+    const savedUserRaw = localStorage.getItem('currentUser');
+    if (savedUserRaw) {
+        try {
+            currentUser = JSON.parse(savedUserRaw);
+        } catch (e) {
+            localStorage.removeItem('currentUser');
+        }
+    }
 
     // ===== 유틸 =====
-    const normalizePhone = (v)=> (v||'').replace(/\D/g,'');
     function formatDate(date){ const y=date.getFullYear(); const m=String(date.getMonth()+1).padStart(2,'0'); const d=String(date.getDate()).padStart(2,'0'); return `${y}-${m}-${d}`; }
     function escapeHtml(text){ if(!text) return ''; return String(text).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[m])); }
     function getCampingForDateRange(dateStr){ for (let i=0;i<campings.length;i++){ if(dateStr>=campings[i].startDate && dateStr<=campings[i].endDate){ return campings[i]; } } return null; }
-    function getDaysDiffInclusive(startDate, endDate){ const s=new Date(startDate); const e=new Date(endDate); return Math.floor((e-s)/(1000*60*60*24))+1; }
-    function getMonthYear(){ return `${currentMonth.getFullYear()}년 ${currentMonth.getMonth()+1}월`; }
-
-    // ===== 스플래시 =====
-    function loadingSVG(){
-      return `
-      <svg viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
-        <defs>
-          <linearGradient id="g1" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stop-color="#FFB347"/>
-            <stop offset="100%" stop-color="#FF7043"/>
-          </linearGradient>
-        </defs>
-        <rect x="0" y="150" width="200" height="50" fill="#2e7d32"/>
-        <polygon points="60,150 110,70 160,150" fill="#4caf50" stroke="#2e7d32" stroke-width="3"/>
-        <polygon points="110,70 115,80 140,150 160,150" fill="#66bb6a" opacity="0.7"/>
-        <circle cx="40" cy="110" r="10" fill="#424242"/>
-        <rect x="35" y="120" width="10" height="25" fill="#616161"/>
-        <line x1="35" y1="130" x2="20" y2="145" stroke="#616161" stroke-width="4"/>
-        <line x1="45" y1="130" x2="60" y2="145" stroke="#616161" stroke-width="4"/>
-        <circle cx="90" cy="145" r="10" fill="url(#g1)">
-          <animate attributeName="r" values="8;12;8" dur="1.2s" repeatCount="indefinite"/>
-        </circle>
-        <path d="M80 150 L100 150" stroke="#6d4c41" stroke-width="6" stroke-linecap="round"/>
-        <circle cx="90" cy="125" r="2" fill="#FF7043">
-          <animate attributeName="cy" values="130;120;130" dur="1s" repeatCount="indefinite"/>
-        </circle>
-        <circle cx="80" cy="130" r="1.8" fill="#FFB347">
-          <animate attributeName="cy" values="135;118;135" dur="1.3s" repeatCount="indefinite"/>
-        </circle>
-      </svg>`;
-    }
-    function showLoadingSplash(cb){ showSplash=true; render(); setTimeout(()=>{ showSplash=false; cb&&cb(); render(); }, 2000); }
+    function getDaysDiffInclusive(startDate, endDate){ const s=new Date(startDate); const e=new Date(endDate); return Math.floor((e - s)/(1000*60*60*24)) + 1; }
 
     // ===== 월 변경 =====
     window.changeMonth = function(delta){ currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+delta, 1); render(); };
+    function getMonthYear(){ return `${currentMonth.getFullYear()}년 ${currentMonth.getMonth()+1}월`; }
 
-    // ===== 인증 모달 제어 =====
+    // ===== 인증 모달 컨트롤 =====
     window.openLoginModal = function(){ showLoginModal=true; isSignUp=false; render(); };
     window.openSignUpModal = function(){ showLoginModal=true; isSignUp=true; render(); };
     window.closeLoginModal = function(){ showLoginModal=false; isSignUp=false; render(); };
     window.toggleAuthMode = function(){ isSignUp=!isSignUp; render(); };
 
-    // ===== 인증 처리 (서버 질의 기반 + 전화번호 정규화) =====
+    // ===== 인증 처리 =====
     window.handleAuth = function(){
-      const teamName = document.getElementById('authTeamName').value.trim();
-      const phoneRaw = document.getElementById('authPhone').value.trim();
-      const phone = normalizePhone(phoneRaw);
-      if(!teamName || !phone){ alert('팀 이름과 휴대폰 번호를 모두 입력해주세요.'); return; }
-      const phoneRegex = /^01[0-9]{8,9}$/; // 하이픈 제거 기준
-      if(!phoneRegex.test(phone)){ alert('올바른 휴대폰 번호 형식이 아닙니다.'); return; }
+        const teamName = document.getElementById('authTeamName').value.trim();
+        const phone = document.getElementById('authPhone').value.trim();
+        if(!teamName || !phone){ alert('팀 이름과 휴대폰 번호를 모두 입력해주세요.'); return; }
+        const phoneRegex = /^01[0-9]-?[0-9]{3,4}-?[0-9]{4}$/;
+        if(!phoneRegex.test(phone)){ alert('올바른 휴대폰 번호 형식이 아닙니다.'); return; }
 
-      if(isSignUp){
-        db.collection('users').where('phone','==',phone).limit(1).get().then(samePhone=>{
-          if(!samePhone.empty){ alert('이미 가입된 휴대폰 번호입니다. 로그인해주세요.'); throw 'dup-phone'; }
-          return db.collection('users').where('name','==',teamName).limit(1).get();
-        }).then(sameName=>{
-          if(!sameName.empty){ alert('이미 사용 중인 팀 이름입니다. 다른 이름을 입력해주세요.'); throw 'dup-name'; }
-          const colorIndex = allUsers.length % colorPalette.length;
-          const newUser = { name: teamName, phone: phone, colorIndex, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
-          return db.collection('users').add(newUser);
-        }).then(docRef=>{
-          currentUser = { id: docRef.id, name: teamName, phone: phone, colorIndex: (allUsers.length % colorPalette.length) };
-          localStorage.setItem('currentUser', JSON.stringify(currentUser));
-          showLoginModal=false; isSignUp=false; allUsers.push(currentUser);
-          showLoadingSplash(()=>{ init(); });
-          alert('회원가입이 완료되었습니다!');
-        }).catch(err=>{ if(err!=='dup-phone' && err!=='dup-name'){ alert('회원가입 중 오류가 발생했습니다: '+err); } });
-      } else {
-        db.collection('users').where('name','==',teamName).where('phone','==',phone).limit(1).get().then(snap=>{
-          if(snap.empty){ alert('팀 이름 또는 휴대폰 번호가 일치하지 않습니다.'); return; }
-          const doc = snap.docs[0]; const u = doc.data();
-          currentUser = { id: doc.id, name: u.name, phone: u.phone, colorIndex: u.colorIndex };
-          localStorage.setItem('currentUser', JSON.stringify(currentUser));
-          showLoginModal=false;
-          showLoadingSplash(()=>{ init(); });
-        }).catch(err=>{ alert('로그인 중 오류가 발생했습니다: '+err.message); });
-      }
+        if(isSignUp){
+            const existingUser = allUsers.find(u=>u.phone===phone);
+            if(existingUser){ alert('이미 가입된 휴대폰 번호입니다. 로그인해주세요.'); return; }
+            const existingName = allUsers.find(u=>u.name===teamName);
+            if(existingName){ alert('이미 사용 중인 팀 이름입니다. 다른 이름을 입력해주세요.'); return; }
+
+            const colorIndex = allUsers.length % colorPalette.length;
+            const newUser = { name: teamName, phone: phone, colorIndex: colorIndex, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
+            db.collection('users').add(newUser).then(docRef=>{
+                currentUser = { id: docRef.id, name: teamName, phone: phone, colorIndex: colorIndex };
+                localStorage.setItem('currentUser', JSON.stringify(currentUser));
+                showLoginModal=false; isSignUp=false;
+                // 즉시 allUsers에 반영하여 재가입 유도 방지
+                allUsers.push({ id: currentUser.id, name: currentUser.name, phone: currentUser.phone, colorIndex: currentUser.colorIndex });
+                init();
+                alert('회원가입이 완료되었습니다!');
+                render();
+            }).catch(error=>{ alert('회원가입 중 오류가 발생했습니다: ' + error.message); });
+        } else {
+            const user = allUsers.find(u=>u.name===teamName && u.phone===phone);
+            if(!user){ alert('팀 이름 또는 휴대폰 번호가 일치하지 않습니다.'); return; }
+            currentUser = user;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            showLoginModal=false; render(); init();
+        }
     };
 
     window.logout = function(){ currentUser=null; localStorage.removeItem('currentUser'); render(); };
 
-    // ===== 상태 모달 =====
+    // ===== 일정 상태 모달 =====
     window.openAddModal = function(dateStr){ selectedDate=dateStr; showModal=true; showCampingDetail=false; render(); };
     window.closeModal = function(){ showModal=false; selectedDate=null; render(); };
 
     window.setStatus = function(status){
-      if(!currentUser || !selectedDate) return;
-      const camping = getCampingForDateRange(selectedDate);
-      const datesToUpdate = [];
-      if(camping){ const s=new Date(camping.startDate), e=new Date(camping.endDate); for(let d=new Date(s); d<=e; d.setDate(d.getDate()+1)) datesToUpdate.push(formatDate(new Date(d))); }
-      else { datesToUpdate.push(selectedDate); }
+        if(!currentUser || !selectedDate) return;
+        const camping = getCampingForDateRange(selectedDate);
+        const datesToUpdate = [];
+        if(camping){
+            const start=new Date(camping.startDate); const end=new Date(camping.endDate);
+            for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)) datesToUpdate.push(formatDate(new Date(d)));
+        } else { datesToUpdate.push(selectedDate); }
 
-      const ops = datesToUpdate.map(dateStr=>{
-        const existing = schedules.find(s=>s.date===dateStr && s.userId===currentUser.id);
-        const data = { title: status, date: dateStr, userId: currentUser.id, userName: currentUser.name, color: colorPalette[currentUser.colorIndex] };
-        return existing ? db.collection('schedules').doc(existing.id).update(data) : db.collection('schedules').add(data);
-      });
-      Promise.all(ops).then(()=>{ showModal=false; selectedDate=null; render(); }); // 액션 후 자동 닫힘
+        const ops = datesToUpdate.map(dateStr=>{
+            const existing = schedules.find(s=>s.date===dateStr && s.userId===currentUser.id);
+            const data = { title: status, date: dateStr, userId: currentUser.id, userName: currentUser.name, color: colorPalette[currentUser.colorIndex] };
+            return existing ? db.collection('schedules').doc(existing.id).update(data) : db.collection('schedules').add(data);
+        });
+
+        Promise.all(ops).then(()=>{ showModal=false; selectedDate=null; render(); }); // (2) 액션 후 자동 닫힘
     };
 
     window.deleteStatus = function(){
-      if(!currentUser || !selectedDate) return; if(!confirm('삭제하시겠습니까?')) return;
-      const camping = getCampingForDateRange(selectedDate);
-      const datesToDelete = [];
-      if(camping){ const s=new Date(camping.startDate), e=new Date(camping.endDate); for(let d=new Date(s); d<=e; d.setDate(d.getDate()+1)) datesToDelete.push(formatDate(new Date(d))); }
-      else { datesToDelete.push(selectedDate); }
-      const delOps = [];
-      for(const dateStr of datesToDelete){ for(const s of schedules){ if(s.date===dateStr && s.userId===currentUser.id){ delOps.push(db.collection('schedules').doc(s.id).delete()); } } }
-      Promise.all(delOps).then(()=>{ showModal=false; selectedDate=null; render(); }); // 자동 닫힘
+        if(!currentUser || !selectedDate) return;
+        if(!confirm('삭제하시겠습니까?')) return;
+        const camping = getCampingForDateRange(selectedDate);
+        const datesToDelete = [];
+        if(camping){
+            const start=new Date(camping.startDate); const end=new Date(camping.endDate);
+            for(let d=new Date(start); d<=end; d.setDate(d.getDate()+1)) datesToDelete.push(formatDate(new Date(d)));
+        } else { datesToDelete.push(selectedDate); }
+
+        const delOps = [];
+        for(const dateStr of datesToDelete){
+            for(const s of schedules){ if(s.date===dateStr && s.userId===currentUser.id){ delOps.push(db.collection('schedules').doc(s.id).delete()); } }
+        }
+        Promise.all(delOps).then(()=>{ showModal=false; selectedDate=null; render(); }); // (2)
     };
 
-    // ===== 놀러갈곳 상세/등록 =====
+    // ===== 놀러갈곳(캠핑) 상세/등록 =====
     window.openCampingDetail = function(campingId){ selectedCamping = campings.find(c=>c.id===campingId); if(selectedCamping){ showCampingDetail=true; showModal=false; render(); } };
     window.closeCampingDetail = function(){ showCampingDetail=false; selectedCamping=null; render(); };
     window.openCampingModal = function(dateStr, campingId){ editingCamping = campingId ? campings.find(c=>c.id===campingId) : null; selectedDate=dateStr; showCampingModal=true; showCampingDetail=false; render(); };
     window.closeCampingModal = function(){ showCampingModal=false; editingCamping=null; render(); };
 
     window.saveCamping = function(){
-      const name = document.getElementById('campingName').value.trim();
-      const startDate = document.getElementById('campingStartDate').value;
-      const endDate = document.getElementById('campingEndDate').value;
-      const address = document.getElementById('campingAddress').value.trim();
-      const website = document.getElementById('campingWebsite').value.trim();
-      const info = document.getElementById('campingInfo').value.trim();
-      if(!name || !startDate || !endDate){ alert('캠핑장 이름과 날짜를 입력해주세요.'); return; }
-      if(new Date(startDate) > new Date(endDate)){ alert('시작일은 종료일보다 앞서야 합니다.'); return; }
-      const data = { name, startDate, endDate, address, website, info, createdBy: currentUser.id, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
-      const after = ()=>{ showCampingModal=false; editingCamping=null; render(); };
-      if(editingCamping){ db.collection('campings').doc(editingCamping.id).update(data).then(after); }
-      else { data.createdAt = firebase.firestore.FieldValue.serverTimestamp(); db.collection('campings').add(data).then(after); }
+        const name = document.getElementById('campingName').value.trim();
+        const startDate = document.getElementById('campingStartDate').value;
+        const endDate = document.getElementById('campingEndDate').value;
+        const address = document.getElementById('campingAddress').value.trim();
+        const website = document.getElementById('campingWebsite').value.trim();
+        const info = document.getElementById('campingInfo').value.trim();
+
+        if(!name || !startDate || !endDate){ alert('캠핑장 이름과 날짜를 입력해주세요.'); return; }
+        if(new Date(startDate) > new Date(endDate)){ alert('시작일은 종료일보다 앞서야 합니다.'); return; }
+
+        const data = { name, startDate, endDate, address, website, info, createdBy: currentUser.id, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+        const after = ()=>{ showCampingModal=false; editingCamping=null; render(); };
+        if(editingCamping){ db.collection('campings').doc(editingCamping.id).update(data).then(after); } else { data.createdAt=firebase.firestore.FieldValue.serverTimestamp(); db.collection('campings').add(data).then(after); }
     };
 
     window.deleteCamping = function(campingId, createdBy){
-      if(createdBy !== currentUser.id){ alert('작성자만 삭제할 수 있습니다.'); return; }
-      if(!confirm('삭제하시겠습니까?')) return;
-      db.collection('campings').doc(campingId).delete().then(()=>{ showCampingDetail=false; showCampingModal=false; selectedCamping=null; editingCamping=null; render(); });
+        if(createdBy !== currentUser.id){ alert('작성자만 삭제할 수 있습니다.'); return; }
+        if(!confirm('삭제하시겠습니까?')) return;
+        db.collection('campings').doc(campingId).delete().then(()=>{ showCampingDetail=false; showCampingModal=false; selectedCamping=null; editingCamping=null; render(); });
     };
 
-    // ===== 렌더 =====
+    // ===== 렌더링 =====
     function render(){
-      const app = document.getElementById('app');
+        const app = document.getElementById('app');
 
-      // 스플래시
-      if(showSplash){
+        // 로그인 전 화면
+        if(!currentUser){
+            let loginModalHtml='';
+            if(showLoginModal){
+                const colorNotice = isSignUp ? '<div class="text-xs text-blue-700 bg-blue-50 p-3 rounded border border-blue-200">🎨 색상은 가입 순서대로 자동으로 배정됩니다</div>' : '';
+                loginModalHtml = `
+                <div class="fixed inset-0 bg-black/60 z-50 flex items-end" onclick="if(event.target===this)closeLoginModal()">
+                  <div class="bg-white w-full rounded-t-3xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
+                    <div class="flex justify-between items-center mb-5">
+                      <h3 class="text-xl font-bold">${isSignUp ? '회원가입' : '로그인'}</h3>
+                      <button onclick="closeLoginModal()" class="text-3xl text-gray-500">×</button>
+                    </div>
+                    <div class="space-y-4">
+                      <div>
+                        <label class="block text-sm mb-2 font-bold">팀 이름</label>
+                        <input type="text" id="authTeamName" placeholder="예) 서하네, 다은이네" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg">
+                      </div>
+                      <div>
+                        <label class="block text-sm mb-2 font-bold">휴대폰 번호</label>
+                        <input type="tel" id="authPhone" placeholder="010-1234-5678" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg">
+                      </div>
+                      ${colorNotice}
+                      <button onclick="handleAuth()" class="w-full py-3 bg-green-600 text-white rounded-lg font-bold">${isSignUp ? '가입하기' : '로그인'}</button>
+                      <button onclick="toggleAuthMode()" class="w-full text-sm text-gray-600">${isSignUp ? '이미 계정이 있나요? 로그인' : '계정이 없나요? 회원가입'}</button>
+                    </div>
+                  </div>
+                </div>`;
+            }
+
+            app.innerHTML = `
+            <div class="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-green-400 to-blue-400">
+              <div class="text-center mb-8">
+                <h1 class="text-6xl mb-4">🏕️</h1>
+                <h2 class="text-4xl font-bold text-white mb-2">같이 놀러가자</h2>
+                <p class="text-white/90 text-lg">모두 같이 일정을 공유해요</p> <!-- (3) 문구 변경 -->
+              </div>
+              <div class="w-full max-w-sm space-y-3">
+                <button onclick="openLoginModal()" class="w-full py-4 bg-white rounded-2xl shadow-lg font-bold text-lg text-green-600">로그인</button>
+                <button onclick="openSignUpModal()" class="w-full py-4 bg-white/20 rounded-2xl font-bold text-lg text-white border-2 border-white">회원가입</button>
+              </div>
+              ${loginModalHtml}
+            </div>`;
+            return;
+        }
+
+        // 달력 데이터 구성
+        const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
+        const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 0);
+        const dates = [];
+        for(let d=new Date(firstDay); d<=lastDay; d.setDate(d.getDate()+1)) dates.push(new Date(d));
+
+        // 일자 카드 렌더
+        let datesHtml = '';
+        for(const date of dates){
+            const dateStr = formatDate(date);
+            const dayOfWeek = ['일','월','화','수','목','금','토'][date.getDay()];
+            const isWeekend = date.getDay()===0 || date.getDay()===6;
+            const isToday = dateStr === formatDate(new Date());
+            const holiday = holidays[dateStr];
+            const camping = getCampingForDateRange(dateStr);
+            const dateSchedules = schedules.filter(s=>s.date===dateStr);
+            const attendingUsers = dateSchedules.filter(s=>s.title==='참석');
+            const notAttendingUsers = dateSchedules.filter(s=>s.title==='불참');
+            const pendingUsers = dateSchedules.filter(s=>s.title==='보류');
+
+            // 멤버 상태 표
+            let membersStatusHtml = '';
+            const chunkSize = 3; const chunks=[]; for(let i=0;i<allUsers.length;i+=chunkSize) chunks.push(allUsers.slice(i,i+chunkSize));
+            for(const chunk of chunks){
+                membersStatusHtml += '<div class="flex gap-1 mt-2">';
+                for(const member of chunk){
+                    const userSchedule = dateSchedules.find(s=>s.userId===member.id);
+                    let bgColor='bg-gray-100', textColor='text-gray-400';
+                    if(userSchedule){
+                        if(userSchedule.title==='참석'){ bgColor='bg-green-100'; textColor='text-green-700'; }
+                        else if(userSchedule.title==='보류'){ bgColor='bg-yellow-100'; textColor='text-yellow-700'; }
+                        else { bgColor='bg-red-100'; textColor='text-red-700'; }
+                    }
+                    membersStatusHtml += `<div class="flex-1 text-center py-1 rounded text-xs ${bgColor} ${textColor} font-medium">${escapeHtml(member.name)}</div>`;
+                }
+                const emptySlots = 3 - chunk.length; for(let e=0;e<emptySlots;e++){ membersStatusHtml += '<div class="flex-1 py-1 rounded bg-gray-50 border border-gray-200"></div>'; }
+                membersStatusHtml += '</div>';
+            }
+
+            // 상태 요약
+            let statusSummary='';
+            if(attendingUsers.length || notAttendingUsers.length || pendingUsers.length){
+                statusSummary = '<div class="text-xs text-gray-600 mt-2">' +
+                    (attendingUsers.length? `<span class=\"text-green-600\">👍 ${attendingUsers.length}명</span>`:'') +
+                    (pendingUsers.length? `${attendingUsers.length?' · ':''}<span class=\"text-yellow-600\">⏸️ ${pendingUsers.length}명</span>`:'') +
+                    (notAttendingUsers.length? `${(attendingUsers.length||pendingUsers.length)?' · ':''}<span class=\"text-red-600\">👎 ${notAttendingUsers.length}명</span>`:'') +
+                    '</div>';
+            }
+
+            // 놀러갈곳 카드 (기존 캠핑)
+            let campingHtml='';
+            if(camping){
+                const totalDays = getDaysDiffInclusive(camping.startDate, camping.endDate);
+                const totalInfo = totalDays>1 ? ` · 총 ${totalDays}일` : '';// (9)
+                campingHtml = `
+                <div onclick="openCampingDetail('${camping.id}')" class="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-2 cursor-pointer active:bg-yellow-100">
+                  <div class="flex items-center gap-2">
+                    <span class="text-lg">🏕️</span>
+                    <div class="flex-1 min-w-0">
+                      <div class="font-bold text-sm text-yellow-900 truncate">${escapeHtml(camping.name)}</div>
+                      <div class="text-xs text-yellow-700">${camping.startDate} ~ ${camping.endDate}${totalInfo}</div>
+                    </div>
+                  </div>
+                </div>`;
+            }
+
+            const holidayHtml = holiday ? `<div class="text-xs text-red-500 font-medium mt-1">${holiday}</div>` : '';
+            const todayBadge = isToday ? '<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full ml-1">오늘</span>' : '';
+
+            // (10) 일정이 1일 이상이면 초록색 테두리 강조
+            const multiDayRing = (camping && getDaysDiffInclusive(camping.startDate, camping.endDate) > 1) ? ' ring-2 ring-green-400' : '';
+            const todayBorder = isToday ? ' border-green-500' : ' border-transparent';
+
+            // (4) "+" 와 "등록" 버튼 같은 행, 좌측에 등록 버튼 배치, 줄바꿈 X
+            const actionButtons = `
+                <div class="flex items-center gap-2 whitespace-nowrap">
+                  ${!camping ? `<button onclick=\"openCampingModal('${dateStr}', null)\" class=\"text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium\">등록</button>` : ''}
+                  <button onclick="openAddModal('${dateStr}')" class="text-blue-600 font-bold text-xl px-2">+</button>
+                </div>`;
+
+            datesHtml += `
+            <div class="bg-white rounded-xl p-4 shadow-sm border-2${todayBorder}${multiDayRing}">
+              <div class="flex items-center justify-between mb-2">
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-2xl font-bold ${ (isWeekend||holiday) ? 'text-red-500':'text-gray-800' }">${date.getDate()}</span>
+                    <span class="text-sm ${ (isWeekend||holiday) ? 'text-red-500':'text-gray-500' }">${dayOfWeek}</span>
+                    ${todayBadge}
+                  </div>
+                  ${holidayHtml}
+                  ${campingHtml}
+                </div>
+                ${actionButtons}
+              </div>
+              ${membersStatusHtml}
+              ${statusSummary}
+            </div>`;
+        }
+
+        // 상태 선택 모달
+        let modalHtml='';
+        if(showModal){
+            const mySchedule = schedules.find(s=>s.date===selectedDate && s.userId===currentUser.id);
+            let modalContent='';
+            if(mySchedule){
+                modalContent = `
+                <div class="space-y-3">
+                  <div class="p-4 bg-blue-50 rounded-lg">
+                    <div class="text-sm text-gray-600 mb-1">현재 상태</div>
+                    <div class="text-lg font-bold text-blue-600">${mySchedule.title}</div>
+                  </div>
+                  <div class="grid grid-cols-3 gap-2">
+                    <button onclick=\"setStatus('참석')\" class="py-3 bg-green-600 text-white rounded-lg font-medium">참석</button>
+                    <button onclick=\"setStatus('보류')\" class="py-3 bg-yellow-600 text-white rounded-lg font-medium">보류</button>
+                    <button onclick=\"setStatus('불참')\" class="py-3 bg-red-600 text-white rounded-lg font-medium">불참</button>
+                  </div>
+                  <button onclick="deleteStatus()" class="w-full py-3 border border-gray-300 rounded-lg font-medium text-gray-700 mt-2">삭제</button>
+                </div>`;
+            } else {
+                modalContent = `
+                <div class="grid grid-cols-3 gap-3">
+                  <button onclick=\"setStatus('참석')\" class="py-4 bg-green-600 text-white rounded-xl font-bold text-lg">👍 참석</button>
+                  <button onclick=\"setStatus('보류')\" class="py-4 bg-yellow-600 text-white rounded-xl font-bold text-lg">⏸️ 보류</button>
+                  <button onclick=\"setStatus('불참')\" class="py-4 bg-red-600 text-white rounded-xl font-bold text-lg">👎 불참</button>
+                </div>`;
+            }
+            modalHtml = `
+            <div class="fixed inset-0 bg-black/50 z-40 flex items-end" onclick="if(event.target===this)closeModal()">
+              <div class="bg-white w-full rounded-t-3xl p-5 animate-slide-up">
+                <div class="flex justify-between items-center mb-4">
+                  <h3 class="text-xl font-bold">${selectedDate}</h3>
+                  <button onclick="closeModal()" class="text-3xl text-gray-500">×</button>
+                </div>
+                ${modalContent}
+              </div>
+            </div>`;
+        }
+
+        // 상세 모달 (8, 9)
+        let campingDetailHtml='';
+        if(showCampingDetail && selectedCamping){
+            const addressHtml = selectedCamping.address ? `<div>📍 ${escapeHtml(selectedCamping.address)}</div>` : '';
+            const websiteHtml = selectedCamping.website ? `<div>🔗 <a href="${selectedCamping.website}" target="_blank" class="text-blue-600">${escapeHtml(selectedCamping.website)}</a></div>` : '';
+            const infoHtml = selectedCamping.info ? `<div class="bg-gray-50 rounded-lg p-4"><h5 class="font-medium mb-2">📝 안내사항</h5><div class="text-sm text-gray-700 whitespace-pre-wrap">${escapeHtml(selectedCamping.info)}</div></div>` : '';
+            const editButtonHtml = selectedCamping.createdBy === currentUser.id ? `<button onclick=\"openCampingModal('${selectedCamping.startDate}', '${selectedCamping.id}')\" class="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium">수정</button>` : '';
+            const totalDays = getDaysDiffInclusive(selectedCamping.startDate, selectedCamping.endDate);
+            const daysHtml = totalDays>1 ? `<div class="text-sm text-gray-700">총 ${totalDays}일</div>` : '';
+
+            campingDetailHtml = `
+            <div class="fixed inset-0 bg-black/50 z-40 flex items-end" onclick="if(event.target===this)closeCampingDetail()">
+              <div class="bg-white w-full rounded-t-3xl p-5 max-h-[90vh] overflow-y-auto animate-slide-up">
+                <div class="flex justify-between items-center mb-4">
+                  <h3 class="text-xl font-bold">🏕️ 놀러갈곳 정보</h3> <!-- (8) 명칭 변경 -->
+                  <button onclick="closeCampingDetail()" class="text-3xl text-gray-500">×</button>
+                </div>
+                <div class="space-y-4">
+                  <div class="bg-yellow-50 rounded-lg p-4">
+                    <h4 class="font-bold text-lg mb-2">${escapeHtml(selectedCamping.name)}</h4>
+                    <div class="text-sm text-gray-600 space-y-1">
+                      <div>📅 ${selectedCamping.startDate} ~ ${selectedCamping.endDate}</div>
+                      ${daysHtml}
+                      ${addressHtml}
+                      ${websiteHtml}
+                    </div>
+                  </div>
+                  ${infoHtml}
+                  <div class="flex gap-2">
+                    ${editButtonHtml}
+                    <button onclick="closeCampingDetail()" class="flex-1 py-3 border border-gray-300 rounded-lg font-medium">닫기</button>
+                  </div>
+                </div>
+              </div>
+            </div>`;
+        }
+
+        // 등록/수정 모달 (5,6,7)
+        let campingModalHtml='';
+        if(showCampingModal){
+            const deleteButtonHtml = (editingCamping && editingCamping.createdBy===currentUser.id)
+                ? `<div class="pt-4 border-t"><button onclick=\"deleteCamping('${editingCamping.id}', '${editingCamping.createdBy}')\" class="w-full py-2 bg-red-100 text-red-700 rounded-lg font-medium">일정 정보 삭제</button></div>`
+                : '';
+
+            campingModalHtml = `
+            <div class="fixed inset-0 bg-black/50 z-50 flex items-end" onclick="if(event.target===this)closeCampingModal()">
+              <div class="bg-white w-full rounded-t-3xl p-5 max-h-[90vh] overflow-y-auto animate-slide-up">
+                <div class="flex justify-between items-center mb-4">
+                  <h3 class="text-xl font-bold">🏕️ 일정 ${editingCamping ? '수정' : '등록'}</h3> <!-- (5) 명칭 변경 -->
+                  <button onclick="closeCampingModal()" class="text-3xl text-gray-500">×</button>
+                </div>
+                <div class="space-y-4">
+                  <div>
+                    <label class="block text-sm mb-1 font-medium">놀러가는 곳 *</label> <!-- (7) 문구 변경 -->
+                    <input type="text" id="campingName" value="${editingCamping ? escapeHtml(editingCamping.name) : ''}" placeholder="별빛캠핑장" class="w-full px-4 py-3 border rounded-lg">
+                  </div>
+                  <div class="date-grid"> <!-- (6) 겹침 방지, 폭 조정 -->
+                    <div>
+                      <label class="block text-sm mb-1 font-medium">시작일 *</label>
+                      <input type="date" id="campingStartDate" value="${editingCamping ? editingCamping.startDate : (selectedDate || '')}" class="date-input px-4 py-3 border rounded-lg">
+                    </div>
+                    <div>
+                      <label class="block text-sm mb-1 font-medium">종료일 *</label>
+                      <input type="date" id="campingEndDate" value="${editingCamping ? editingCamping.endDate : (selectedDate || '')}" class="date-input px-4 py-3 border rounded-lg">
+                    </div>
+                  </div>
+                  <div class="text-xs text-gray-500 bg-blue-50 p-2 rounded">💡 시작일과 종료일을 설정하면 2박3일, 3박4일 등의 일정을 만들 수 있습니다</div>
+                  <div>
+                    <label class="block text-sm mb-1">주소</label>
+                    <input type="text" id="campingAddress" value="${editingCamping && editingCamping.address ? escapeHtml(editingCamping.address) : ''}" placeholder="경기도 가평군..." class="w-full px-4 py-3 border rounded-lg">
+                  </div>
+                  <div>
+                    <label class="block text-sm mb-1">웹사이트</label>
+                    <input type="url" id="campingWebsite" value="${editingCamping && editingCamping.website ? escapeHtml(editingCamping.website) : ''}" placeholder="https://..." class="w-full px-4 py-3 border rounded-lg">
+                  </div>
+                  <div>
+                    <label class="block text-sm mb-1">안내 및 메모</label>
+                    <textarea id="campingInfo" maxlength="2000" placeholder="캠핑장 특징, 주의사항 등을 자유롭게 작성하세요 (최대 2000자)" class="w-full px-4 py-3 border rounded-lg resize-none" rows="5">${editingCamping && editingCamping.info ? escapeHtml(editingCamping.info) : ''}</textarea>
+                  </div>
+                  <div class="flex gap-2 pt-2">
+                    <button onclick="closeCampingModal()" class="flex-1 py-3 border rounded-lg font-medium">취소</button>
+                    <button onclick="saveCamping()" class="flex-1 py-3 bg-green-600 text-white rounded-lg font-medium">저장</button>
+                  </div>
+                  ${deleteButtonHtml}
+                </div>
+              </div>
+            </div>`;
+        }
+
+        const myColor = colorPalette[currentUser.colorIndex];
         app.innerHTML = `
-        <div class="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-green-400 to-blue-400">
-          <div class="w-48 h-48">${loadingSVG()}</div>
-          <p class="mt-6 text-white/90">로딩중...</p>
-        </div>`; return;
-      }
-
-      // 로그인 전
-      if(!currentUser){
-        let loginModalHtml='';
-        if(showLoginModal){
-          const colorNotice = isSignUp ? '<div class="text-xs text-blue-700 bg-blue-50 p-3 rounded border border-blue-200">🎨 색상은 가입 순서대로 자동으로 배정됩니다</div>' : '';
-          loginModalHtml = `
-          <div class="fixed inset-0 bg-black/60 z-50 flex items-end" onclick="if(event.target===this)closeLoginModal()">
-            <div class="bg-white w-full rounded-t-3xl p-6 animate-slide-up max-h-[90vh] overflow-y-auto">
-              <div class="flex justify-between items-center mb-5">
-                <h3 class="text-xl font-bold">${isSignUp ? '회원가입' : '로그인'}</h3>
-                <button onclick="closeLoginModal()" class="text-3xl text-gray-500">×</button>
+        <div class="min-h-screen pb-20">
+          <div class="sticky top-0 z-10 bg-green-600 text-white shadow-lg">
+            <div class="p-4">
+              <div class="flex items-center justify-between mb-3">
+                <div><h1 class="text-2xl font-bold">🏕️ 같이 놀러가자</h1></div>
+                <button onclick="logout()" class="text-xs bg-white/20 px-3 py-1 rounded-full">로그아웃</button>
               </div>
-              <div class="space-y-4">
-                <div>
-                  <label class="block text-sm mb-2 font-bold">팀 이름</label>
-                  <input type="text" id="authTeamName" placeholder="예) 서하네, 다은이네" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg">
-                </div>
-                <div>
-                  <label class="block text-sm mb-2 font-bold">휴대폰 번호</label>
-                  <input type="tel" id="authPhone" placeholder="010-1234-5678" class="w-full px-4 py-3 border-2 border-gray-300 rounded-lg">
-                </div>
-                ${colorNotice}
-                <button onclick="handleAuth()" class="w-full py-3 bg-green-600 text-white rounded-lg font-bold">${isSignUp ? '가입하기' : '로그인'}</button>
-                <button onclick="toggleAuthMode()" class="w-full text-sm text-gray-600">${isSignUp ? '이미 계정이 있나요? 로그인' : '계정이 없나요? 회원가입'}</button>
+              <div class="flex items-center justify-between">
+                <button onclick="changeMonth(-1)" class="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30">←</button>
+                <h2 class="text-xl font-bold">${getMonthYear()}</h2>
+                <button onclick="changeMonth(1)" class="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30">→</button>
+              </div>
+              <div class="mt-2 flex items-center gap-2">
+                <div class="w-3 h-3 rounded-full" style="background-color:${myColor}"></div>
+                <span class="text-sm">${escapeHtml(currentUser.name)}</span>
               </div>
             </div>
-          </div>`;
-        }
-
-        app.innerHTML = `
-        <div class="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-green-400 to-blue-400">
-          <div class="text-center mb-8">
-            <h1 class="text-6xl mb-4">🏕️</h1>
-            <h2 class="text-4xl font-bold text-white mb-2">같이 놀러가자</h2>
-            <p class="text-white/90 text-lg">모두 같이 일정을 공유해요</p>
           </div>
-          <div class="w-full max-w-sm space-y-3">
-            <button onclick="openLoginModal()" class="w-full py-4 bg-white rounded-2xl shadow-lg font-bold text-lg text-green-600">로그인</button>
-            <button onclick="openSignUpModal()" class="w-full py-4 bg-white/20 rounded-2xl font-bold text-lg text-white border-2 border-white">회원가입</button>
-          </div>
-          ${loginModalHtml}
+          <div class="p-3 space-y-3">${datesHtml}</div>
+          ${modalHtml}
+          ${campingDetailHtml}
+          ${campingModalHtml}
         </div>`;
-        return;
-      }
-
-      // 달력 데이터
-      const firstDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth(), 1);
-      const lastDay = new Date(currentMonth.getFullYear(), currentMonth.getMonth()+1, 0);
-      const dates = []; for(let d=new Date(firstDay); d<=lastDay; d.setDate(d.getDate()+1)) dates.push(new Date(d));
-
-      let datesHtml = '';
-      for(const date of dates){
-        const dateStr = formatDate(date);
-        const dayOfWeek = ['일','월','화','수','목','금','토'][date.getDay()];
-        const isWeekend = date.getDay()===0||date.getDay()===6;
-        const isToday = dateStr===formatDate(new Date());
-        const holiday = holidays[dateStr];
-        const camping = getCampingForDateRange(dateStr);
-        const dateSchedules = schedules.filter(s=>s.date===dateStr);
-        const attendingUsers = dateSchedules.filter(s=>s.title==='참석');
-        const notAttendingUsers = dateSchedules.filter(s=>s.title==='불참');
-        const pendingUsers = dateSchedules.filter(s=>s.title==='보류');
-
-        let membersStatusHtml='';
-        const chunks=[]; for(let i=0;i<allUsers.length;i+=3) chunks.push(allUsers.slice(i,i+3));
-        for(const chunk of chunks){
-          membersStatusHtml += '<div class="flex gap-1 mt-2">';
-          for(const member of chunk){
-            const userSchedule = dateSchedules.find(s=>s.userId===member.id);
-            let bg='bg-gray-100', t='text-gray-400';
-            if(userSchedule){ if(userSchedule.title==='참석'){ bg='bg-green-100'; t='text-green-700'; } else if(userSchedule.title==='보류'){ bg='bg-yellow-100'; t='text-yellow-700'; } else { bg='bg-red-100'; t='text-red-700'; } }
-            membersStatusHtml += `<div class="flex-1 text-center py-1 rounded text-xs ${bg} ${t} font-medium">${escapeHtml(member.name)}</div>`;
-          }
-          const empty=3-chunk.length; for(let e=0;e<empty;e++){ membersStatusHtml += '<div class="flex-1 py-1 rounded bg-gray-50 border border-gray-200"></div>'; }
-          membersStatusHtml += '</div>';
-        }
-
-        let statusSummary='';
-        if(attendingUsers.length||notAttendingUsers.length||pendingUsers.length){
-          statusSummary = '<div class="text-xs text-gray-600 mt-2">' +
-            (attendingUsers.length?`<span class=\"text-green-600\">👍 ${attendingUsers.length}명</span>`:'') +
-            (pendingUsers.length?`${attendingUsers.length?' · ':''}<span class=\"text-yellow-600\">⏸️ ${pendingUsers.length}명</span>`:'') +
-            (notAttendingUsers.length?`${(attendingUsers.length||pendingUsers.length)?' · ':''}<span class=\"text-red-600\">👎 ${notAttendingUsers.length}명</span>`:'') +
-            '</div>';
-        }
-
-        let campingHtml='';
-        if(camping){
-          const totalDays = getDaysDiffInclusive(camping.startDate, camping.endDate);
-          const infoDays = totalDays>1 ? ` · 총 ${totalDays}일` : '';
-          campingHtml = `
-          <div onclick="openCampingDetail('${camping.id}')" class="mt-2 bg-yellow-50 border border-yellow-200 rounded-lg p-2 cursor-pointer active:bg-yellow-100">
-            <div class="flex items-center gap-2">
-              <span class="text-lg">🏕️</span>
-              <div class="flex-1 min-w-0">
-                <div class="font-bold text-sm text-yellow-900 truncate">${escapeHtml(camping.name)}</div>
-                <div class="text-xs text-yellow-700">${camping.startDate} ~ ${camping.endDate}${infoDays}</div>
-              </div>
-            </div>
-          </div>`;
-        }
-
-        const holidayHtml = holiday ? `<div class=\"text-xs text-red-500 font-medium mt-1\">${holiday}</div>` : '';
-        const todayBadge = isToday ? '<span class="text-xs bg-green-500 text-white px-2 py-0.5 rounded-full ml-1">오늘</span>' : '';
-        const multiDayRing = (camping && getDaysDiffInclusive(camping.startDate, camping.endDate) > 1) ? ' ring-2 ring-green-400' : '';
-        const todayBorder = isToday ? ' border-green-500' : ' border-transparent';
-
-        const actionButtons = `
-          <div class="flex items-center gap-2 whitespace-nowrap">
-            ${!camping ? `<button onclick=\"openCampingModal('${dateStr}', null)\" class=\"text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium\">등록</button>` : ''}
-            <button onclick="openAddModal('${dateStr}')" class="text-blue-600 font-bold text-xl px-2">+</button>
-          </div>`;
-
-        datesHtml += `
-        <div class="bg-white rounded-xl p-4 shadow-sm border-2${todayBorder}${multiDayRing}">
-          <div class="flex items-center justify-between mb-2">
-            <div>
-              <div class="flex items-center gap-2">
-                <span class="text-2xl font-bold ${ (isWeekend||holiday) ? 'text-red-500':'text-gray-800' }">${date.getDate()}</span>
-                <span class="text-sm ${ (isWeekend||holiday) ? 'text-red-500':'text-gray-500' }">${dayOfWeek}</span>
-                ${todayBadge}
-              </div>
-              ${holidayHtml}
-              ${campingHtml}
-            </div>
-            ${actionButtons}
-          </div>
-          ${membersStatusHtml}
-          ${statusSummary}
-        </div>`;
-      }
-
-      // 상태 모달
-      let modalHtml='';
-      if(showModal){
-        const mySchedule = schedules.find(s=>s.date===selectedDate && s.userId===currentUser.id);
-        let modalContent='';
-        if(mySchedule){
-          modalContent = `
-          <div class="space-y-3">
-            <div class="p-4 bg-blue-50 rounded-lg">
-              <div class="text-sm text-gray-600 mb-1">현재 상태</div>
-              <div class="text-lg font-bold text-blue-600">${mySchedule.title}</div>
-            </div>
-            <div class="grid grid-cols-3 gap-2">
-              <button onclick=\"setStatus('참석')\" class="py-3 bg-green-600 text-white rounded-lg font-medium">참석</button>
-              <button onclick=\"setStatus('보류')\" class="py-3 bg-yellow-600 text-white rounded-lg font-medium">보류</button>
-              <button onclick=\"setStatus('불참')\" class="py-3 bg-red-600 text-white rounded-lg font-medium">불참</button>
-            </div>
-            <button onclick="deleteStatus()" class="w-full py-3 border border-gray-300 rounded-lg font-medium text-gray-700 mt-2">삭제</button>
-          </div>`;
-        } else {
-          modalContent = `
-          <div class="grid grid-cols-3 gap-3">
-            <button onclick=\"setStatus('참석')\" class="py-4 bg-green-600 text-white rounded-xl font-bold text-lg">👍 참석</button>
-            <button onclick=\"setStatus('보류')\" class="py-4 bg-yellow-600 text-white rounded-xl font-bold text-lg">⏸️ 보류</button>
-            <button onclick=\"setStatus('불참')\" class="py-4 bg-red-600 text-white rounded-xl font-bold text-lg">👎 불참</button>
-          </div>`;
-        }
-        modalHtml = `
-        <div class="fixed inset-0 bg-black/50 z-40 flex items-end" onclick="if(event.target===this)closeModal()">
-          <div class="bg-white w-full rounded-t-3xl p-5 animate-slide-up">
-            <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold">${selectedDate}</h3>
-              <button onclick="closeModal()" class="text-3xl text-gray-500">×</button>
-            </div>
-            ${modalContent}
-          </div>
-        </div>`;
-      }
-
-      // 상세 모달
-      let campingDetailHtml='';
-      if(showCampingDetail && selectedCamping){
-        const addressHtml = selectedCamping.address ? `<div>📍 ${escapeHtml(selectedCamping.address)}</div>` : '';
-        const websiteHtml = selectedCamping.website ? `<div>🔗 <a href="${selectedCamping.website}" target="_blank" class="text-blue-600">${escapeHtml(selectedCamping.website)}</a></div>` : '';
-        const infoHtml = selectedCamping.info ? `<div class="bg-gray-50 rounded-lg p-4"><h5 class="font-medium mb-2">📝 안내사항</h5><div class="text-sm text-gray-700 whitespace-pre-wrap">${escapeHtml(selectedCamping.info)}</div></div>` : '';
-        const editButtonHtml = selectedCamping.createdBy === currentUser.id ? `<button onclick=\"openCampingModal('${selectedCamping.startDate}', '${selectedCamping.id}')\" class="flex-1 py-3 bg-blue-600 text-white rounded-lg font-medium">수정</button>` : '';
-        const totalDays = getDaysDiffInclusive(selectedCamping.startDate, selectedCamping.endDate);
-        const daysHtml = totalDays>1 ? `<div class="text-sm text-gray-700">총 ${totalDays}일</div>` : '';
-
-        campingDetailHtml = `
-        <div class="fixed inset-0 bg-black/50 z-40 flex items-end" onclick="if(event.target===this)closeCampingDetail()">
-          <div class="bg-white w-full rounded-t-3xl p-5 max-h-[90vh] overflow-y-auto animate-slide-up">
-            <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold">🏕️ 놀러갈곳 정보</h3>
-              <button onclick="closeCampingDetail()" class="text-3xl text-gray-500">×</button>
-            </div>
-            <div class="space-y-4">
-              <div class="bg-yellow-50 rounded-lg p-4">
-                <h4 class="font-bold text-lg mb-2">${escapeHtml(selectedCamping.name)}</h4>
-                <div class="text-sm text-gray-600 space-y-1">
-                  <div>📅 ${selectedCamping.startDate} ~ ${selectedCamping.endDate}</div>
-                  ${daysHtml}
-                  ${addressHtml}
-                  ${websiteHtml}
-                </div>
-              </div>
-              ${infoHtml}
-              <div class="flex gap-2">
-                ${editButtonHtml}
-                <button onclick="closeCampingDetail()" class="flex-1 py-3 border border-gray-300 rounded-lg font-medium">닫기</button>
-              </div>
-            </div>
-          </div>
-        </div>`;
-      }
-
-      // 등록/수정 모달
-      let campingModalHtml='';
-      if(showCampingModal){
-        const deleteButtonHtml = (editingCamping && editingCamping.createdBy===currentUser.id)
-          ? `<div class="pt-4 border-t"><button onclick=\"deleteCamping('${editingCamping.id}', '${editingCamping.createdBy}')\" class="w-full py-2 bg-red-100 text-red-700 rounded-lg font-medium">일정 정보 삭제</button></div>` : '';
-
-        campingModalHtml = `
-        <div class="fixed inset-0 bg-black/50 z-50 flex items-end" onclick="if(event.target===this)closeCampingModal()">
-          <div class="bg-white w-full rounded-t-3xl p-5 max-h-[90vh] overflow-y-auto animate-slide-up">
-            <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold">🏕️ 일정 ${editingCamping ? '수정' : '등록'}</h3>
-              <button onclick="closeCampingModal()" class="text-3xl text-gray-500">×</button>
-            </div>
-            <div class="space-y-4">
-              <div>
-                <label class="block text-sm mb-1 font-medium">놀러가는 곳 *</label>
-                <input type="text" id="campingName" value="${editingCamping ? escapeHtml(editingCamping.name) : ''}" placeholder="별빛캠핑장" class="w-full px-4 py-3 border rounded-lg">
-              </div>
-              <div class="date-grid">
-                <div>
-                  <label class="block text-sm mb-1 font-medium">시작일 *</label>
-                  <input type="date" id="campingStartDate" value="${editingCamping ? editingCamping.startDate : (selectedDate || '')}" class="date-input px-4 py-3 border rounded-lg">
-                </div>
-                <div>
-                  <label class="block text-sm mb-1 font-medium">종료일 *</label>
-                  <input type="date" id="campingEndDate" value="${editingCamping ? editingCamping.endDate : (selectedDate || '')}" class="date-input px-4 py-3 border rounded-lg">
-                </div>
-              </div>
-              <div class="text-xs text-gray-500 bg-blue-50 p-2 rounded">💡 시작일과 종료일을 설정하면 2박3일, 3박4일 등의 일정을 만들 수 있습니다</div>
-              <div>
-                <label class="block text-sm mb-1">주소</label>
-                <input type="text" id="campingAddress" value="${editingCamping && editingCamping.address ? escapeHtml(editingCamping.address) : ''}" placeholder="경기도 가평군..." class="w-full px-4 py-3 border rounded-lg">
-              </div>
-              <div>
-                <label class="block text-sm mb-1">웹사이트</label>
-                <input type="url" id="campingWebsite" value="${editingCamping && editingCamping.website ? escapeHtml(editingCamping.website) : ''}" placeholder="https://..." class="w-full px-4 py-3 border rounded-lg">
-              </div>
-              <div>
-                <label class="block text-sm mb-1">안내 및 메모</label>
-                <textarea id="campingInfo" maxlength="2000" placeholder="캠핑장 특징, 주의사항 등을 자유롭게 작성하세요 (최대 2000자)" class="w-full px-4 py-3 border rounded-lg resize-none" rows="5">${editingCamping && editingCamping.info ? escapeHtml(editingCamping.info) : ''}</textarea>
-              </div>
-              <div class="flex gap-2 pt-2">
-                <button onclick="closeCampingModal()" class="flex-1 py-3 border rounded-lg font-medium">취소</button>
-                <button onclick="saveCamping()" class="flex-1 py-3 bg-green-600 text-white rounded-lg font-medium">저장</button>
-              </div>
-              ${deleteButtonHtml}
-            </div>
-          </div>
-        </div>`;
-      }
-
-      const myColor = colorPalette[currentUser.colorIndex];
-      app.innerHTML = `
-      <div class="min-h-screen pb-20">
-        <div class="sticky top-0 z-10 bg-green-600 text-white shadow-lg">
-          <div class="p-4">
-            <div class="flex items-center justify-between mb-3">
-              <div><h1 class="text-2xl font-bold">🏕️ 같이 놀러가자</h1></div>
-              <button onclick="logout()" class="text-xs bg-white/20 px-3 py-1 rounded-full">로그아웃</button>
-            </div>
-            <div class="flex items-center justify-between">
-              <button onclick="changeMonth(-1)" class="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30">←</button>
-              <h2 class="text-xl font-bold">${getMonthYear()}</h2>
-              <button onclick="changeMonth(1)" class="px-4 py-2 bg-white/20 rounded-lg hover:bg-white/30">→</button>
-            </div>
-            <div class="mt-2 flex items-center gap-2">
-              <div class="w-3 h-3 rounded-full" style="background-color:${myColor}"></div>
-              <span class="text-sm">${escapeHtml(currentUser.name)}</span>
-            </div>
-          </div>
-        </div>
-        <div class="p-3 space-y-3">${datesHtml}</div>
-        ${modalHtml}
-        ${campingDetailHtml}
-        ${campingModalHtml}
-      </div>`;
     }
 
     // ===== 실시간 구독 =====
     function init(){
-      db.collection('schedules').onSnapshot(snap=>{ schedules=[]; snap.forEach(doc=>{ schedules.push(Object.assign({ id: doc.id }, doc.data())); }); render(); });
-      db.collection('campings').onSnapshot(snap=>{ campings=[]; snap.forEach(doc=>{ campings.push(Object.assign({ id: doc.id }, doc.data())); }); render(); });
+        // 이미 구독 중인 경우 중복 방지하려면 별도 guard가 필요하지만, 간단하게 매번 새로 바인딩
+        db.collection('schedules').onSnapshot(snapshot=>{ schedules=[]; snapshot.forEach(doc=>{ schedules.push(Object.assign({ id: doc.id }, doc.data())); }); render(); });
+        db.collection('campings').onSnapshot(snapshot=>{ campings=[]; snapshot.forEach(doc=>{ campings.push(Object.assign({ id: doc.id }, doc.data())); }); render(); });
     }
 
-    // 세션 복원 + 스플래시 후 init
-    const savedUserRaw = localStorage.getItem('currentUser');
-    if(savedUserRaw){ try{ currentUser = JSON.parse(savedUserRaw); showLoadingSplash(()=>{ init(); }); } catch(e){ localStorage.removeItem('currentUser'); } }
+    // 먼저 savedUser가 있으면 바로 init 호출 (1)
+    if(currentUser){ init(); }
 
-    // 유저 목록 구독 (로그인 검증용)
+    // 유저 목록 구독 (로그인 화면 및 회원가입 검증용)
     db.collection('users').onSnapshot(snapshot=>{
-      allUsers = [];
-      snapshot.forEach(doc=>{ const u=doc.data(); allUsers.push({ id: doc.id, name: u.name, phone: normalizePhone(u.phone), colorIndex: u.colorIndex }); });
-      render();
+        allUsers = [];
+        snapshot.forEach(doc=>{
+            const u=doc.data();
+            allUsers.push({ id: doc.id, name: u.name, phone: u.phone, colorIndex: u.colorIndex });
+        });
+        // savedUser가 있었는데 아직 currentUser가 비어있다면 복원
+        if(!currentUser){
+            const saved = localStorage.getItem('currentUser');
+            if(saved){
+                try{
+                    const s=JSON.parse(saved);
+                    // 서버 목록에 없어도 로컬 로그인 지속 (삭제된 계정인 경우에만 나중에 동작 제한 가능)
+                    currentUser = allUsers.find(u=>u.id===s.id) || s;
+                    init();
+                }catch(e){ localStorage.removeItem('currentUser'); }
+            }
+        }
+        render();
     });
-  </script>
+</script>
 </body>
 </html>
