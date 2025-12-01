@@ -259,6 +259,7 @@
     let schedules = [];
     let campings = [];
     let prepItems = [];
+    let expenses = []; // 정산 데이터
     let showModal = false;
     let selectedDate = null;
     let showCampingDetail = false;
@@ -272,6 +273,7 @@
     let showAllSchedules = false; // 전체 일정 보기 팝업
     let showPrepItemModal = false; // 준비항목 작성 모달
     let showParticipantModal = false; // 참여자 선택 모달
+    let showExpenseModal = false; // 정산 모달
     let tempSelectedParticipants = []; // 임시 선택된 참여자
 
     /* 유틸 */
@@ -785,6 +787,66 @@
         });
     };
 
+    /* ===== 정산 관련 함수 ===== */
+    window.openExpenseModal = function(){
+      showExpenseModal = true;
+      render();
+    };
+
+    window.closeExpenseModal = function(){
+      showExpenseModal = false;
+      render();
+    };
+
+    // 항목 추가
+    window.addExpenseItem = function(userId){
+      if(!selectedCamping) return;
+      const campingId = selectedCamping.id;
+      const userExpenses = expenses.filter(e => e.campingId === campingId && e.userId === userId);
+      
+      const newItem = {
+        campingId,
+        userId,
+        description: '',
+        amount: 0,
+        order: userExpenses.length,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      };
+      
+      db.collection('expenses').add(newItem)
+        .catch(e=>{alert('항목 추가 실패');console.error(e);});
+    };
+
+    // 항목 수정 (render 제거 - Firebase 실시간 동기화로 자동 업데이트)
+    window.updateExpenseItem = function(expenseId, field, value){
+      const update = {};
+      update[field] = value;
+      update.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+      
+      db.collection('expenses').doc(expenseId).update(update)
+        .catch(e=>{console.error('업데이트 실패', e);});
+    };
+
+    // 금액 입력 시 천단위 콤마 포맷팅
+    window.formatAmountInput = function(input, expenseId){
+      let value = input.value.replace(/,/g, ''); // 기존 콤마 제거
+      if(value === '') {
+        updateExpenseItem(expenseId, 'amount', 0);
+        return;
+      }
+      
+      const numValue = parseInt(value) || 0;
+      input.value = numValue.toLocaleString(); // 천단위 콤마 추가
+      updateExpenseItem(expenseId, 'amount', numValue);
+    };
+
+    // 항목 삭제
+    window.deleteExpenseItem = function(expenseId){
+      if(!confirm('이 항목을 삭제하시겠습니까?')) return;
+      db.collection('expenses').doc(expenseId).delete()
+        .catch(e=>{alert('삭제 실패');console.error(e);});
+    };
+
     /* 렌더링 */
     function render(){
       const app = document.getElementById('app');
@@ -1248,6 +1310,12 @@
                 ${infoHtml}
                 ${prepItemsHtml}
                 
+                <div class="bg-white rounded-lg p-4 border-2 border-blue-200">
+                  <button onclick="openExpenseModal()" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold text-lg active:bg-blue-700">
+                    💰 정산하기
+                  </button>
+                </div>
+                
                 <div class="space-y-2">
                   <button onclick="shareToKakao('${selectedCamping.id}')" class="w-full py-3 bg-yellow-400 hover:bg-yellow-500 text-gray-800 rounded-lg font-medium flex items-center justify-center gap-2 active:bg-yellow-600">
                     <svg class="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
@@ -1318,6 +1386,7 @@
           ${showCampingModal ? renderCampingModal() : ''}
           ${showPrepItemModal ? renderPrepItemModal() : ''}
           ${showParticipantModal ? renderParticipantModal() : ''}
+          ${showExpenseModal ? renderExpenseModal() : ''}
           ${allSchedulesHtml}
         </div>`;
       if(showCampingModal){
@@ -1610,6 +1679,137 @@
       `;
     }
 
+    /* 정산 모달 */
+    function renderExpenseModal(){
+      if(!showExpenseModal || !selectedCamping) return '';
+      
+      const camping = selectedCamping;
+      
+      // 해당 캠핑의 참여자 찾기 (camping.participants 사용)
+      const participants = (camping.participants || [])
+        .map(pid => allUsers.find(u => u.id === pid))
+        .filter(u => u);
+      
+      // 캠핑별 정산 데이터
+      const campingExpenses = expenses.filter(e => e.campingId === camping.id);
+      
+      // 팀별 소계 및 총계 계산
+      let totalAmount = 0;
+      const teamTotals = {};
+      
+      participants.forEach(user => {
+        const userExpenses = campingExpenses.filter(e => e.userId === user.id);
+        const teamTotal = userExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        teamTotals[user.id] = teamTotal;
+        totalAmount += teamTotal;
+      });
+      
+      const perPerson = participants.length > 0 ? Math.round(totalAmount / participants.length) : 0;
+      
+      return `
+        <div class="fixed inset-0 bg-black/50 z-50 flex items-end" onclick="if(event.target===this)closeExpenseModal()">
+          <div class="bg-white w-full rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto animate-slide-up">
+            <div class="flex justify-between items-center mb-4 sticky top-0 bg-white pb-3 border-b">
+              <h3 class="text-xl font-bold">💰 정산</h3>
+              <button onclick="closeExpenseModal()" class="text-3xl text-gray-500">×</button>
+            </div>
+            
+            ${participants.length === 0 ? `
+              <div class="text-center py-8 text-gray-400">
+                <div class="text-4xl mb-2">👥</div>
+                <div>참여자를 먼저 등록해주세요</div>
+              </div>
+            ` : `
+            <div class="space-y-6 mb-6">
+              ${participants.map(user => {
+                const color = colorPalette[user.colorIndex];
+                const isMe = user.id === currentUser.id;
+                const userExpenses = campingExpenses.filter(e => e.userId === user.id);
+                const teamTotal = teamTotals[user.id] || 0;
+                
+                return `
+                  <div class="border-2 rounded-xl p-4" style="border-color: ${color}33">
+                    <div class="flex justify-between items-center mb-3">
+                      <div class="font-bold text-lg" style="color: ${color}">
+                        ${escapeHtml(user.name)}${isMe ? ' (나)' : ''}
+                      </div>
+                      ${isMe ? `
+                        <button onclick="addExpenseItem('${user.id}')" 
+                          class="px-3 py-1 text-sm rounded-lg font-medium"
+                          style="background-color: ${color}22; color: ${color}">
+                          + 항목추가
+                        </button>
+                      ` : ''}
+                    </div>
+                    
+                    <div class="space-y-2 mb-3">
+                      ${userExpenses.length === 0 ? `
+                        <div class="text-center py-4 text-gray-400 text-sm">
+                          ${isMe ? '지출 항목을 추가해주세요' : '지출 내역이 없습니다'}
+                        </div>
+                      ` : userExpenses.map(expense => {
+                        const canEdit = isMe;
+                        return `
+                          <div class="flex items-center gap-2">
+                            <input type="text" 
+                              value="${escapeHtml(expense.description || '')}"
+                              placeholder="지출 내용"
+                              ${canEdit ? '' : 'readonly'}
+                              ${canEdit ? `oninput="updateExpenseItem('${expense.id}', 'description', this.value)"` : ''}
+                              class="flex-1 px-3 py-2 border rounded-lg text-sm ${canEdit ? '' : 'bg-gray-50'}" 
+                              autocomplete="off">
+                            <input type="text" 
+                              value="${expense.amount && expense.amount > 0 ? expense.amount.toLocaleString() : ''}"
+                              placeholder="금액 입력"
+                              ${canEdit ? '' : 'readonly'}
+                              ${canEdit ? `oninput="formatAmountInput(this, '${expense.id}')"` : ''}
+                              class="w-28 px-3 py-2 border rounded-lg text-sm text-right ${canEdit ? '' : 'bg-gray-50'}" 
+                              autocomplete="off">
+                            ${canEdit ? `
+                              <button onclick="deleteExpenseItem('${expense.id}')" 
+                                class="p-2 text-red-600 hover:bg-red-50 rounded-lg active:bg-red-100">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                                </svg>
+                              </button>
+                            ` : ''}
+                          </div>
+                        `;
+                      }).join('')}
+                    </div>
+                    
+                    <div class="border-t pt-2 flex justify-between items-center font-bold" style="color: ${color}">
+                      <span>소계</span>
+                      <span class="text-lg">${teamTotal.toLocaleString()}원</span>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+            </div>
+            
+            <div class="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 space-y-2 sticky bottom-0">
+              <div class="flex justify-between items-center text-lg font-bold">
+                <span>총 합계</span>
+                <span class="text-2xl text-green-600">${totalAmount.toLocaleString()}원</span>
+              </div>
+              <div class="flex justify-between items-center text-lg font-bold">
+                <span>1/n (${participants.length}명)</span>
+                <span class="text-2xl text-blue-600">${perPerson.toLocaleString()}원</span>
+              </div>
+            </div>
+            `}
+            
+            <div class="mt-4">
+              <button onclick="closeExpenseModal()" 
+                class="w-full py-3 bg-gray-500 text-white rounded-lg font-medium active:bg-gray-600">
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     /* 글자 수 카운터 업데이트 */
     window.updateCharCount = function(textarea) {
       const charCount = document.getElementById('charCount');
@@ -1635,6 +1835,12 @@
       db.collection('prepItems').onSnapshot(snap=>{ 
         prepItems=[]; 
         snap.forEach(doc=>{ prepItems.push(Object.assign({ id: doc.id }, doc.data())); }); 
+        render(); 
+      });
+      
+      db.collection('expenses').onSnapshot(snap=>{ 
+        expenses=[]; 
+        snap.forEach(doc=>{ expenses.push(Object.assign({ id: doc.id }, doc.data())); }); 
         render(); 
       });
     }
