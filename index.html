@@ -617,6 +617,13 @@
         data.attendance = editingCamping.attendance || {};
         db.collection('campings').doc(editingCamping.id).update(data).then(()=>{
           customAlert('일정이 수정되었습니다.');
+          
+          // selectedCamping 업데이트 (일정 상세가 열려있는 경우)
+          if(showCampingDetail && selectedCamping && selectedCamping.id === editingCamping.id) {
+            selectedCamping = Object.assign({}, selectedCamping, data, { id: editingCamping.id });
+            updateCampingDetailDOM();
+          }
+          
           closeCampingModal();
         }).catch(e=>{ customAlert('오류: '+e); });
       } else {
@@ -627,6 +634,121 @@
         }).catch(e=>{ customAlert('오류: '+e); });
       }
     };
+
+    /* 일정 상세 DOM 부분 업데이트 (깜빡임 방지) */
+    function updateCampingDetailDOM(){
+      if(!showCampingDetail || !selectedCamping) return;
+      
+      // 제목 업데이트
+      const titleEl = document.querySelector('.bg-yellow-50 h4');
+      if(titleEl) titleEl.textContent = selectedCamping.name;
+      
+      // 날짜 및 정보 업데이트
+      const infoContainer = document.querySelector('.bg-yellow-50 .text-sm.text-gray-600');
+      if(infoContainer) {
+        const start = new Date(selectedCamping.startDate);
+        const end = new Date(selectedCamping.endDate);
+        const days = Math.ceil((end - start) / (1000*60*60*24)) + 1;
+        const daysText = days === 1 ? '당일치기' : `${days-1}박${days}일`;
+        
+        let html = `<div>${selectedCamping.startDate} ~ ${selectedCamping.endDate}</div>`;
+        html += `<div>🗓️ ${daysText}</div>`;
+        if(selectedCamping.address) {
+          html += `<div>${escapeHtml(selectedCamping.address)}</div>`;
+        }
+        if(selectedCamping.website) {
+          html += `<div>🔗 <a href="${escapeHtml(selectedCamping.website)}" target="_blank" class="text-blue-600 underline">웹사이트 바로가기</a></div>`;
+        }
+        infoContainer.innerHTML = html;
+      }
+      
+      // 메모 업데이트
+      updateMemoSection();
+      
+      // 준비항목 업데이트 (참여자 변경 반영)
+      updatePrepItemsSection();
+    }
+
+    /* 메모 섹션 업데이트 */
+    function updateMemoSection(){
+      const existingMemo = document.querySelector('.bg-gray-50.rounded-lg.p-4');
+      
+      if(selectedCamping.info) {
+        const memoHtml = `<div class="text-sm font-medium mb-2">📝 안내 및 메모</div><div class="text-sm whitespace-pre-wrap">${escapeHtml(selectedCamping.info)}</div>`;
+        
+        if(existingMemo && existingMemo.querySelector('.text-sm.font-medium')?.textContent.includes('안내 및 메모')) {
+          existingMemo.innerHTML = memoHtml;
+        } else {
+          // 메모 섹션이 없으면 추가
+          const yellowSection = document.querySelector('.bg-yellow-50');
+          if(yellowSection && !existingMemo) {
+            const newMemo = document.createElement('div');
+            newMemo.className = 'bg-gray-50 rounded-lg p-4';
+            newMemo.innerHTML = memoHtml;
+            yellowSection.insertAdjacentElement('afterend', newMemo);
+          }
+        }
+      } else {
+        // 메모가 없으면 섹션 제거
+        if(existingMemo && existingMemo.querySelector('.text-sm.font-medium')?.textContent.includes('안내 및 메모')) {
+          existingMemo.remove();
+        }
+      }
+    }
+
+    /* 준비항목 섹션 업데이트 (참여자 변경 반영) */
+    function updatePrepItemsSection(){
+      const prepSection = Array.from(document.querySelectorAll('.bg-gray-50.rounded-lg.p-4'))
+        .find(el => el.querySelector('.text-sm.font-medium')?.textContent.includes('준비항목'));
+      
+      if(!prepSection) return;
+      
+      // 준비항목 재생성
+      let prepItemsHtml = '<div class="text-sm font-medium mb-4">📦 준비항목</div>';
+      
+      if(selectedCamping.participants && selectedCamping.participants.length > 0) {
+        prepItemsHtml += '<div class="space-y-3">';
+        
+        selectedCamping.participants.forEach(userId => {
+          const u = allUsers.find(x => x.id === userId);
+          if(!u) return;
+          
+          const color = colorPalette[u.colorIndex];
+          const userPrepItem = prepItems.find(p => p.campingId === selectedCamping.id && p.userId === userId);
+          const isMySection = userId === currentUser.id;
+          
+          prepItemsHtml += `<div class="bg-white rounded-lg p-3 border" style="border-color: ${color}33;">`;
+          prepItemsHtml += '<div class="flex justify-between items-center mb-2">';
+          prepItemsHtml += `<div class="font-medium text-sm" style="color: ${color}">${escapeHtml(u.name)}</div>`;
+          
+          if(isMySection) {
+            prepItemsHtml += `<button onclick="openPrepItemModal('${selectedCamping.id}', '${userId}')" class="text-xs text-green-600 font-medium">✏️ 작성</button>`;
+          }
+          
+          prepItemsHtml += '</div>';
+          
+          if(userPrepItem && userPrepItem.content) {
+            prepItemsHtml += `<div class="text-sm text-gray-700 whitespace-pre-wrap bg-gray-50 p-2 rounded">${escapeHtml(userPrepItem.content)}</div>`;
+          } else {
+            prepItemsHtml += `<div class="text-xs text-gray-400 italic">아직 준비항목이 없습니다</div>`;
+          }
+          
+          prepItemsHtml += '</div>';
+        });
+        
+        prepItemsHtml += '</div>';
+      } else {
+        prepItemsHtml += '<div class="text-xs text-gray-500 text-center py-4">참여자가 없습니다</div>';
+      }
+      
+      prepSection.innerHTML = prepItemsHtml;
+    }
+
+    /* 참여자 목록 DOM 업데이트 */
+    function updateParticipantListDOM(){
+      // 이 함수는 준비항목 섹션에서 참여자를 표시하므로 updatePrepItemsSection으로 대체
+      updatePrepItemsSection();
+    }
 
     /* 일정 삭제 */
     window.deleteCamping = function(campingId, createdBy){
