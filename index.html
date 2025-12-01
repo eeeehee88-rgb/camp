@@ -197,6 +197,11 @@
       font-weight: 600;
     }
   </style>
+
+  <!-- flatpickr DatePicker for custom date range -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+
 </head>
 <body class="bg-gray-50">
   <div id="app"></div>
@@ -389,6 +394,25 @@
 
     /* 참여자 선택 모달 */
     window.openParticipantModal = function(){
+      // ✅ 현재 입력 폼 값들을 먼저 저장해서, 참여자 선택 모달을 열어도 값이 초기화되지 않도록 처리
+      const nameInput = document.getElementById('campingName');
+      const startDateInput = document.getElementById('campingStartDate');
+      const endDateInput = document.getElementById('campingEndDate');
+      const addressInput = document.getElementById('campingAddress');
+      const websiteInput = document.getElementById('campingWebsite');
+      const infoInput = document.getElementById('campingInfo');
+
+      if (!editingCamping) {
+        editingCamping = {};
+      }
+
+      if (nameInput) editingCamping.name = nameInput.value;
+      if (startDateInput) editingCamping.startDate = startDateInput.value;
+      if (endDateInput) editingCamping.endDate = endDateInput.value;
+      if (addressInput) editingCamping.address = addressInput.value;
+      if (websiteInput) editingCamping.website = websiteInput.value;
+      if (infoInput) editingCamping.info = infoInput.value;
+
       // 현재 선택된 참여자를 임시 배열로 복사
       if(editingCamping && editingCamping.participants) {
         tempSelectedParticipants = [...editingCamping.participants];
@@ -1298,9 +1322,68 @@
           ${showParticipantModal ? renderParticipantModal() : ''}
           ${allSchedulesHtml}
         </div>`;
+      if(showCampingModal){
+        initDatePickers();
+      }
     }
 
-    // 로그인 모달
+    
+    // 날짜 선택용 flatpickr 초기화
+    function initDatePickers(){
+      try{
+        if(typeof flatpickr === 'undefined') return;
+      }catch(e){
+        return;
+      }
+      const startEl = document.getElementById('campingStartDate');
+      const endEl = document.getElementById('campingEndDate');
+      if(!startEl) return;
+
+      // 이미 초기화되어 있다면 다시 초기화하지 않음
+      if(startEl._flatpickr){
+        return;
+      }
+
+      let defaultDates = [];
+      if(editingCamping && editingCamping.startDate && editingCamping.endDate){
+        defaultDates = [editingCamping.startDate, editingCamping.endDate];
+      }
+
+      flatpickr(startEl, {
+        mode: "range",
+        dateFormat: "Y-m-d",
+        defaultDate: defaultDates,
+        onChange: function(selectedDates){
+          if(selectedDates.length === 0){
+            if(endEl) endEl.value = '';
+            if(editingCamping){
+              editingCamping.startDate = '';
+              editingCamping.endDate = '';
+            }
+          }
+          if(selectedDates.length === 2){
+            const [start, end] = selectedDates;
+            const toStr = d => {
+              const y = d.getFullYear();
+              const m = String(d.getMonth() + 1).padStart(2, '0');
+              const day = String(d.getDate()).padStart(2, '0');
+              return `${y}-${m}-${day}`;
+            };
+            const startStr = toStr(start);
+            const endStr = toStr(end);
+
+            if(startEl) startEl.value = startStr;
+            if(endEl) endEl.value = endStr;
+
+            if(!editingCamping) editingCamping = {};
+            editingCamping.startDate = startStr;
+            editingCamping.endDate = endStr;
+          }
+        }
+      });
+    }
+
+// 로그인 모달
     function renderLoginModal(){
       return `
         <div class="fixed inset-0 bg-black/50 z-50 flex items-end" onclick="if(event.target===this)closeLoginModal()">
@@ -1381,11 +1464,11 @@
             <div class="date-grid">
               <div>
                 <label class="block text-sm mb-1 font-medium">시작일 *</label>
-                <input type="date" id="campingStartDate" value="${editing ? editing.startDate : (selectedDate || '')}" class="date-input px-4 py-3 border rounded-lg" autocomplete="off">
+                <input type="text" id="campingStartDate" value="${editing ? editing.startDate : (selectedDate || '')}" class="date-input px-4 py-3 border rounded-lg" autocomplete="off">
               </div>
               <div>
                 <label class="block text-sm mb-1 font-medium">종료일 *</label>
-                <input type="date" id="campingEndDate" value="${editing ? editing.endDate : (selectedDate || '')}" class="date-input px-4 py-3 border rounded-lg" autocomplete="off">
+                <input type="text" id="campingEndDate" value="${editing ? editing.endDate : (selectedDate || '')}" class="date-input px-4 py-3 border rounded-lg" autocomplete="off">
               </div>
             </div>
             <div class="text-xs text-gray-500 bg-blue-50 p-2 rounded">💡 시작일과 종료일을 설정하면 2박3일, 3박4일 등의 일정을 만들 수 있습니다</div>
