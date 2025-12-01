@@ -394,10 +394,8 @@
 
     /* 참여자 선택 모달 */
     window.openParticipantModal = function(){
-      // ✅ 현재 입력 폼 값들을 먼저 저장해서, 참여자 선택 모달을 열어도 값이 초기화되지 않도록 처리
+      // ✅ 현재 입력 폼 값들(이름/장소/메모 등)을 먼저 저장해서, 참여자 선택 모달을 열어도 값이 초기화되지 않도록 처리
       const nameInput = document.getElementById('campingName');
-      const startDateInput = document.getElementById('campingStartDate');
-      const endDateInput = document.getElementById('campingEndDate');
       const addressInput = document.getElementById('campingAddress');
       const websiteInput = document.getElementById('campingWebsite');
       const infoInput = document.getElementById('campingInfo');
@@ -407,11 +405,11 @@
       }
 
       if (nameInput) editingCamping.name = nameInput.value;
-      if (startDateInput) editingCamping.startDate = startDateInput.value;
-      if (endDateInput) editingCamping.endDate = endDateInput.value;
       if (addressInput) editingCamping.address = addressInput.value;
       if (websiteInput) editingCamping.website = websiteInput.value;
       if (infoInput) editingCamping.info = infoInput.value;
+
+      // 날짜(startDate/endDate)는 flatpickr에서 관리하므로 여기서는 건드리지 않습니다.
 
       // 현재 선택된 참여자를 임시 배열로 복사
       if(editingCamping && editingCamping.participants) {
@@ -1353,6 +1351,15 @@
         mode: "range",
         dateFormat: "Y-m-d",
         defaultDate: defaultDates,
+        onReady: function(selectedDates, dateStr, instance){
+          // 모달이 처음 열릴 때도 시작일 인풋에는 항상 시작일만 보이도록 정리
+          if(editingCamping && editingCamping.startDate){
+            startEl.value = editingCamping.startDate;
+          }
+          if(editingCamping && editingCamping.endDate && endEl){
+            endEl.value = editingCamping.endDate;
+          }
+        },
         onChange: function(selectedDates){
           if(selectedDates.length === 0){
             if(endEl) endEl.value = '';
@@ -1417,7 +1424,8 @@
     // 등록/수정 모달
     function renderCampingModal(){
       const editing = editingCamping;
-      const deleteButtonHtml = (editing && editing.createdBy===currentUser.id)
+      const isEdit = editing && editing.id;
+      const deleteButtonHtml = (isEdit && editing.createdBy===currentUser.id)
         ? `<div class="pt-4 border-t"><button onclick="deleteCamping('${editing.id}', '${editing.createdBy}')" class="w-full py-2 bg-red-100 text-red-700 rounded-lg font-medium">일정 정보 삭제</button></div>`
         : '';
 
@@ -1453,7 +1461,7 @@
       <div class="fixed inset-0 bg-black/50 z-50 flex items-end" onclick="if(event.target===this)closeCampingModal()">
         <div class="bg-white w-full rounded-t-3xl p-5 max-h-[90vh] overflow-y-auto animate-slide-up">
           <div class="flex justify-between items-center mb-4">
-            <h3 class="text-xl font-bold">🏕️ 일정 ${editing ? '수정' : '등록'}</h3>
+            <h3 class="text-xl font-bold">🏕️ 일정 ${editing && editing.id ? '수정' : '등록'}</h3>
             <button onclick="closeCampingModal()" class="text-3xl text-gray-500">×</button>
           </div>
           <div class="space-y-4">
