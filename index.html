@@ -275,11 +275,96 @@
     let showParticipantModal = false; // 참여자 선택 모달
     let showExpenseModal = false; // 정산 모달
     let tempSelectedParticipants = []; // 임시 선택된 참여자
+    
+    // Firebase 리스너 unsubscribe 함수들
+    let unsubscribeSchedules = null;
+    let unsubscribeCampings = null;
+    let unsubscribePrepItems = null;
+    let unsubscribeExpenses = null;
 
     /* 유틸 */
     const normalizePhone = (v)=> (v||'').replace(/\D/g,'');
     function formatDate(date){ const y=date.getFullYear(); const m=String(date.getMonth()+1).padStart(2,'0'); const d=String(date.getDate()).padStart(2,'0'); return `${y}-${m}-${d}`; }
     function escapeHtml(text){ if(!text) return ''; return String(text).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+    /* 커스텀 모달 함수 */
+    window.customAlert = function(message){
+      // 기존 모달이 있으면 모두 제거
+      document.querySelectorAll('#customAlertModal').forEach(el => el.remove());
+      
+      // 새 모달 생성
+      const modalHtml = `
+        <div id="customAlertModal" class="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl p-6 max-w-sm w-full animate-slide-up shadow-2xl">
+            <div class="text-center mb-6">
+              <div class="flex justify-center mb-3">
+                <svg class="w-16 h-16 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="text-base text-gray-800 whitespace-pre-wrap">${escapeHtml(message)}</div>
+            </div>
+            <button onclick="closeCustomAlert()" 
+              class="w-full py-3 bg-green-600 text-white rounded-lg font-medium active:bg-green-700">
+              확인
+            </button>
+          </div>
+        </div>
+      `;
+      
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+    };
+
+    window.closeCustomAlert = function(){
+      // 모든 alert 모달 제거
+      document.querySelectorAll('#customAlertModal').forEach(el => el.remove());
+    };
+
+    window.customConfirm = function(message, callback){
+      // 기존 모달이 있으면 모두 제거
+      document.querySelectorAll('#customConfirmModal').forEach(el => el.remove());
+      
+      // 새 모달 생성
+      const modalHtml = `
+        <div id="customConfirmModal" class="fixed inset-0 bg-black/50 z-[100] flex items-center justify-center p-4">
+          <div class="bg-white rounded-2xl p-6 max-w-sm w-full animate-slide-up shadow-2xl">
+            <div class="text-center mb-6">
+              <div class="flex justify-center mb-3">
+                <svg class="w-16 h-16 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                </svg>
+              </div>
+              <div class="text-base text-gray-800 whitespace-pre-wrap">${escapeHtml(message)}</div>
+            </div>
+            <div class="flex gap-3">
+              <button onclick="closeCustomConfirm(false)" 
+                class="flex-1 py-3 border border-gray-300 rounded-lg font-medium active:bg-gray-100">
+                취소
+              </button>
+              <button onclick="closeCustomConfirm(true)" 
+                class="flex-1 py-3 bg-green-600 text-white rounded-lg font-medium active:bg-green-700">
+                확인
+              </button>
+            </div>
+          </div>
+        </div>
+      `;
+      
+      document.body.insertAdjacentHTML('beforeend', modalHtml);
+      
+      // 콜백 저장
+      window._customConfirmCallback = callback;
+    };
+
+    window.closeCustomConfirm = function(confirmed){
+      // 모든 confirm 모달 제거
+      document.querySelectorAll('#customConfirmModal').forEach(el => el.remove());
+      
+      if(confirmed && window._customConfirmCallback){
+        window._customConfirmCallback();
+      }
+      window._customConfirmCallback = null;
+    };
     function getCampingForDateRange(dateStr){ for (let i=0;i<campings.length;i++){ if(dateStr>=campings[i].startDate && dateStr<=campings[i].endDate){ return campings[i]; } } return null; }
     function getDaysDiffInclusive(startDate, endDate){ const s=new Date(startDate); const e=new Date(endDate); return Math.floor((e - s)/(1000*60*60*24)) + 1; }
     function getMonthYear(){ return `${currentMonth.getFullYear()}년 ${currentMonth.getMonth()+1}월`; }
@@ -329,16 +414,16 @@
       const phoneRaw = document.getElementById('authPhone').value.trim();
       const phone = normalizePhone(phoneRaw);
 
-      if(!teamName || !phone){ alert('팀 이름과 휴대폰 번호를 모두 입력해주세요.'); return; }
+      if(!teamName || !phone){ customAlert('팀 이름과 휴대폰 번호를 모두 입력해주세요.'); return; }
       const phoneRegex = /^01[0-9]{8,9}$/;
-      if(!phoneRegex.test(phone)){ alert('올바른 휴대폰 번호 형식이 아닙니다.'); return; }
+      if(!phoneRegex.test(phone)){ customAlert('올바른 휴대폰 번호 형식이 아닙니다.'); return; }
 
       if(isSignUp){
         db.collection('users').where('phone','==',phone).limit(1).get().then(sp=>{
-          if(!sp.empty){ alert('이미 가입된 휴대폰 번호입니다. 로그인해주세요.'); throw 'dup-phone'; }
+          if(!sp.empty){ customAlert('이미 가입된 휴대폰 번호입니다. 로그인해주세요.'); throw 'dup-phone'; }
           return db.collection('users').where('name','==',teamName).limit(1).get();
         }).then(sn=>{
-          if(!sn.empty){ alert('이미 사용 중인 팀 이름입니다. 다른 이름을 입력해주세요.'); throw 'dup-name'; }
+          if(!sn.empty){ customAlert('이미 사용 중인 팀 이름입니다. 다른 이름을 입력해주세요.'); throw 'dup-name'; }
           const colorIndex = allUsers.length % colorPalette.length;
           const newUser = { name: teamName, phone: phone, colorIndex, createdAt: firebase.firestore.FieldValue.serverTimestamp() };
           return db.collection('users').add(newUser);
@@ -348,10 +433,10 @@
           showLoginModal=false; isSignUp=false;
           init();
           render();
-        }).catch(e=>{ if(e!=='dup-phone' && e!=='dup-name') alert('오류: '+e); });
+        }).catch(e=>{ if(e!=='dup-phone' && e!=='dup-name') customAlert('오류: '+e); });
       } else {
         db.collection('users').where('name','==',teamName).where('phone','==',phone).limit(1).get().then(snapshot=>{
-          if(snapshot.empty){ alert('일치하는 계정이 없습니다. 회원가입해주세요.'); return; }
+          if(snapshot.empty){ customAlert('일치하는 계정이 없습니다. 회원가입해주세요.'); return; }
           const doc = snapshot.docs[0];
           const u = doc.data();
           currentUser = { id: doc.id, name: u.name, phone: normalizePhone(u.phone), colorIndex: u.colorIndex };
@@ -359,16 +444,17 @@
           showLoginModal=false;
           init();
           render();
-        }).catch(e=>{ alert('오류: '+e); });
+        }).catch(e=>{ customAlert('오류: '+e); });
       }
     };
 
     /* 로그아웃 */
     window.logout = function(){
-      if(!confirm('로그아웃하시겠습니까?')) return;
-      currentUser=null;
-      localStorage.removeItem('currentUser');
-      render();
+      customConfirm('로그아웃하시겠습니까?', function(){
+        currentUser=null;
+        localStorage.removeItem('currentUser');
+        render();
+      });
     };
 
     /* 일정 등록/수정 모달 */
@@ -396,8 +482,10 @@
 
     /* 참여자 선택 모달 */
     window.openParticipantModal = function(){
-      // ✅ 현재 입력 폼 값들(이름/장소/메모 등)을 먼저 저장해서, 참여자 선택 모달을 열어도 값이 초기화되지 않도록 처리
+      // ✅ 현재 입력 폼 값들(이름/장소/메모/날짜 등)을 먼저 저장해서, 참여자 선택 모달을 열어도 값이 초기화되지 않도록 처리
       const nameInput = document.getElementById('campingName');
+      const startDateInput = document.getElementById('campingStartDate');
+      const endDateInput = document.getElementById('campingEndDate');
       const addressInput = document.getElementById('campingAddress');
       const websiteInput = document.getElementById('campingWebsite');
       const infoInput = document.getElementById('campingInfo');
@@ -407,11 +495,11 @@
       }
 
       if (nameInput) editingCamping.name = nameInput.value;
+      if (startDateInput) editingCamping.startDate = startDateInput.value;
+      if (endDateInput) editingCamping.endDate = endDateInput.value;
       if (addressInput) editingCamping.address = addressInput.value;
       if (websiteInput) editingCamping.website = websiteInput.value;
       if (infoInput) editingCamping.info = infoInput.value;
-
-      // 날짜(startDate/endDate)는 flatpickr에서 관리하므로 여기서는 건드리지 않습니다.
 
       // 현재 선택된 참여자를 임시 배열로 복사
       if(editingCamping && editingCamping.participants) {
@@ -466,7 +554,7 @@
 
     window.confirmParticipantSelection = function(){
       if(tempSelectedParticipants.length === 0) {
-        alert('최소 1명 이상 선택해주세요.');
+        customAlert('최소 1명 이상 선택해주세요.');
         return;
       }
       
@@ -505,14 +593,14 @@
       const website = document.getElementById('campingWebsite').value.trim();
       const info = document.getElementById('campingInfo').value.trim();
 
-      if(!name || !startDate || !endDate){ alert('필수 항목을 모두 입력해주세요.'); return; }
-      if(startDate > endDate){ alert('종료일은 시작일 이후여야 합니다.'); return; }
+      if(!name || !startDate || !endDate){ customAlert('필수 항목을 모두 입력해주세요.'); return; }
+      if(startDate > endDate){ customAlert('종료일은 시작일 이후여야 합니다.'); return; }
 
       // 참여자 선택 (모달에서 선택한 참여자)
       const participants = editingCamping && editingCamping.participants ? editingCamping.participants : [];
 
       if(participants.length === 0) {
-        alert('참여자를 최소 1명 이상 선택해주세요.');
+        customAlert('참여자를 최소 1명 이상 선택해주세요.');
         return;
       }
 
@@ -528,34 +616,35 @@
         // 수정 시에는 기존 참여 여부 유지
         data.attendance = editingCamping.attendance || {};
         db.collection('campings').doc(editingCamping.id).update(data).then(()=>{
-          alert('일정이 수정되었습니다.');
+          customAlert('일정이 수정되었습니다.');
           closeCampingModal();
-        }).catch(e=>{ alert('오류: '+e); });
+        }).catch(e=>{ customAlert('오류: '+e); });
       } else {
         data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
         db.collection('campings').add(data).then(()=>{
-          alert('일정이 등록되었습니다.');
+          customAlert('일정이 등록되었습니다.');
           closeCampingModal();
-        }).catch(e=>{ alert('오류: '+e); });
+        }).catch(e=>{ customAlert('오류: '+e); });
       }
     };
 
     /* 일정 삭제 */
     window.deleteCamping = function(campingId, createdBy){
-      if(currentUser.id !== createdBy){ alert('본인이 등록한 일정만 삭제할 수 있습니다.'); return; }
-      if(!confirm('이 일정을 삭제하시겠습니까?')) return;
+      if(currentUser.id !== createdBy){ customAlert('본인이 등록한 일정만 삭제할 수 있습니다.'); return; }
       
-      db.collection('prepItems').where('campingId','==',campingId).get().then(snap=>{
-        const batch = db.batch();
-        snap.forEach(doc=>{ batch.delete(doc.ref); });
-        return batch.commit();
-      }).then(()=>{
-        return db.collection('campings').doc(campingId).delete();
-      }).then(()=>{
-        alert('일정이 삭제되었습니다.');
-        closeCampingModal();
-        closeCampingDetail();
-      }).catch(e=>{ alert('오류: '+e); });
+      customConfirm('이 일정을 삭제하시겠습니까?', function(){
+        db.collection('prepItems').where('campingId','==',campingId).get().then(snap=>{
+          const batch = db.batch();
+          snap.forEach(doc=>{ batch.delete(doc.ref); });
+          return batch.commit();
+        }).then(()=>{
+          return db.collection('campings').doc(campingId).delete();
+        }).then(()=>{
+          customAlert('일정이 삭제되었습니다.');
+          closeCampingModal();
+          closeCampingDetail();
+        }).catch(e=>{ customAlert('오류: '+e); });
+      });
     };
 
     /* 일정 상세 */
@@ -577,12 +666,12 @@
     window.shareToKakao = function(campingId) {
       const camping = campings.find(c => c.id === campingId);
       if(!camping) {
-        alert('일정 정보를 찾을 수 없습니다.');
+        customAlert('일정 정보를 찾을 수 없습니다.');
         return;
       }
 
       if(!window.Kakao || !Kakao.isInitialized()) {
-        alert('카카오톡 공유 기능을 사용할 수 없습니다.\n잠시 후 다시 시도해주세요.');
+        customAlert('카카오톡 공유 기능을 사용할 수 없습니다.\n잠시 후 다시 시도해주세요.');
         return;
       }
 
@@ -602,7 +691,7 @@
         participantsText = participantNames ? `\n👥 참여자: ${participantNames}` : '';
       }
 
-      const description = `📅 ${camping.startDate} ~ ${camping.endDate} (${daysText})${camping.address ? '\n📍 ' + camping.address : ''}${participantsText}`;
+      const description = `${camping.startDate} ~ ${camping.endDate} (${daysText})${camping.address ? '\n' + camping.address : ''}${participantsText}`;
 
       try {
         Kakao.Share.sendDefault({
@@ -628,7 +717,7 @@
         });
       } catch(e) {
         console.error('카카오톡 공유 오류:', e);
-        alert('카카오톡 공유 중 오류가 발생했습니다.\n다시 시도해주세요.');
+        customAlert('카카오톡 공유 중 오류가 발생했습니다.\n다시 시도해주세요.');
       }
     };
 
@@ -650,10 +739,10 @@
       const date = document.getElementById('modalDate').value;
       const activity = document.getElementById('modalActivity').value.trim();
 
-      if(!campingName || !date || !activity){ alert('모든 항목을 입력해주세요.'); return; }
+      if(!campingName || !date || !activity){ customAlert('모든 항목을 입력해주세요.'); return; }
 
       const camping = campings.find(c => c.name === campingName);
-      if(!camping){ alert('일정 정보를 찾을 수 없습니다.'); return; }
+      if(!camping){ customAlert('일정 정보를 찾을 수 없습니다.'); return; }
 
       const data = {
         campingId: camping.id,
@@ -667,18 +756,20 @@
       };
 
       db.collection('schedules').add(data).then(()=>{
-        alert('활동이 등록되었습니다.');
+        customAlert('활동이 등록되었습니다.');
         closeModal();
-      }).catch(e=>{ alert('오류: '+e); });
+      }).catch(e=>{ customAlert('오류: '+e); });
     };
 
     window.deleteSchedule = function(scheduleId, createdBy){
-      if(currentUser.id !== createdBy){ alert('본인이 등록한 활동만 삭제할 수 있습니다.'); return; }
-      if(!confirm('이 활동을 삭제하시겠습니까?')) return;
-      db.collection('schedules').doc(scheduleId).delete().then(()=>{
-        alert('활동이 삭제되었습니다.');
-        render();
-      }).catch(e=>{ alert('오류: '+e); });
+      if(currentUser.id !== createdBy){ customAlert('본인이 등록한 활동만 삭제할 수 있습니다.'); return; }
+      
+      customConfirm('이 활동을 삭제하시겠습니까?', function(){
+        db.collection('schedules').doc(scheduleId).delete().then(()=>{
+          customAlert('활동이 삭제되었습니다.');
+          render();
+        }).catch(e=>{ customAlert('오류: '+e); });
+      });
     };
 
     /* 참여여부 (일정) */
@@ -689,7 +780,7 @@
         [updKey]: status
       }).then(()=>{
         render();
-      }).catch(e=>{ alert('오류: '+e); });
+      }).catch(e=>{ customAlert('오류: '+e); });
     };
 
     /* 참여여부 (활동) */
@@ -700,7 +791,7 @@
         [updKey]: status
       }).then(()=>{
         render();
-      }).catch(e=>{ alert('오류: '+e); });
+      }).catch(e=>{ customAlert('오류: '+e); });
     };
 
     /* 준비항목 등록/수정 */
@@ -722,7 +813,7 @@
       const content = document.getElementById('prepItemContent').value.trim();
       
       if(!content){ 
-        alert('준비항목을 입력해주세요.'); 
+        customAlert('준비항목을 입력해주세요.'); 
         return; 
       }
 
@@ -752,39 +843,39 @@
           }
         })
         .then(() => {
-          alert('저장되었습니다.');
+          customAlert('저장되었습니다.');
           closePrepItemModal();
         })
         .catch(e => { 
-          alert('오류: ' + e); 
+          customAlert('오류: ' + e); 
         });
     };
 
     /* 준비항목 삭제 */
     window.deletePrepItem = function(campingId, userId){
       if(currentUser.id !== userId){ 
-        alert('본인의 준비항목만 삭제할 수 있습니다.'); 
+        customAlert('본인의 준비항목만 삭제할 수 있습니다.'); 
         return; 
       }
       
-      if(!confirm('준비항목을 삭제하시겠습니까?')) return;
-      
-      db.collection('prepItems')
-        .where('campingId', '==', campingId)
-        .where('userId', '==', userId)
-        .get()
-        .then(snapshot => {
-          if(!snapshot.empty) {
-            return db.collection('prepItems').doc(snapshot.docs[0].id).delete();
-          }
-        })
-        .then(() => {
-          alert('삭제되었습니다.');
-          render();
-        })
-        .catch(e => { 
-          alert('오류: ' + e); 
-        });
+      customConfirm('준비항목을 삭제하시겠습니까?', function(){
+        db.collection('prepItems')
+          .where('campingId', '==', campingId)
+          .where('userId', '==', userId)
+          .get()
+          .then(snapshot => {
+            if(!snapshot.empty) {
+              return db.collection('prepItems').doc(snapshot.docs[0].id).delete();
+            }
+          })
+          .then(() => {
+            customAlert('삭제되었습니다.');
+            render();
+          })
+          .catch(e => { 
+            customAlert('오류: ' + e); 
+          });
+      });
     };
 
     /* ===== 정산 관련 함수 ===== */
@@ -814,7 +905,7 @@
       };
       
       db.collection('expenses').add(newItem)
-        .catch(e=>{alert('항목 추가 실패');console.error(e);});
+        .catch(e=>{customAlert('항목 추가 실패');console.error(e);});
     };
 
     // 항목 수정 (render 제거 - Firebase 실시간 동기화로 자동 업데이트)
@@ -842,9 +933,10 @@
 
     // 항목 삭제
     window.deleteExpenseItem = function(expenseId){
-      if(!confirm('이 항목을 삭제하시겠습니까?')) return;
-      db.collection('expenses').doc(expenseId).delete()
-        .catch(e=>{alert('삭제 실패');console.error(e);});
+      customConfirm('이 항목을 삭제하시겠습니까?', function(){
+        db.collection('expenses').doc(expenseId).delete()
+          .catch(e=>{customAlert('삭제 실패');console.error(e);});
+      });
     };
 
     /* 렌더링 */
@@ -1041,7 +1133,7 @@
             const creatorUser = allUsers.find(u => u.id === c.createdBy);
             const creatorName = creatorUser ? creatorUser.name : '알 수 없음';
 
-            let addressHtml = c.address ? `<div>📍 ${escapeHtml(c.address)}</div>` : '';
+            let addressHtml = c.address ? `<div>${escapeHtml(c.address)}</div>` : '';
             let websiteHtml = c.website ? `<div>🔗 <a href="${escapeHtml(c.website)}" target="_blank" class="text-blue-600 underline">웹사이트</a></div>` : '';
 
             // 내 참여 여부
@@ -1086,7 +1178,7 @@
                   <div class="flex-1">
                     <div class="font-bold text-lg mb-1">🏕️ ${escapeHtml(c.name)}</div>
                     <div class="text-sm text-gray-600 space-y-1">
-                      <div>📅 ${c.startDate} ~ ${c.endDate} (${days === 1 ? '당일치기' : days-1+'박'+days+'일'})</div>
+                      <div>${c.startDate} ~ ${c.endDate} (${days === 1 ? '당일치기' : days-1+'박'+days+'일'})</div>
                       ${addressHtml}
                       ${websiteHtml}
                       <div class="text-xs text-gray-500">등록: ${creatorName}</div>
@@ -1181,8 +1273,8 @@
               <div class="bg-white rounded-lg p-4 border mb-3 cursor-pointer active:bg-gray-50" onclick="openDetailFromList('${c.id}')">
                 <div class="font-bold mb-1">🏕️ ${escapeHtml(c.name)}</div>
                 <div class="text-sm text-gray-600 space-y-1">
-                  <div>📅 ${c.startDate} ~ ${c.endDate} (${days === 1 ? '당일치기' : days-1+'박'+days+'일'})</div>
-                  ${c.address ? `<div>📍 ${escapeHtml(c.address)}</div>` : ''}
+                  <div>${c.startDate} ~ ${c.endDate} (${days === 1 ? '당일치기' : days-1+'박'+days+'일'})</div>
+                  ${c.address ? `<div>${escapeHtml(c.address)}</div>` : ''}
                   <div class="text-xs text-gray-500">등록: ${creatorName}</div>
                 </div>
               </div>`;
@@ -1193,7 +1285,7 @@
           <div class="fixed inset-0 bg-black/50 z-40 flex items-end" onclick="if(event.target===this)toggleAllSchedules()">
             <div class="bg-white w-full rounded-t-3xl p-5 max-h-[80vh] overflow-y-auto animate-slide-up">
               <div class="flex justify-between items-center mb-4">
-                <h3 class="text-xl font-bold">📅 등록된 일정</h3>
+                <h3 class="text-xl font-bold">등록된 일정</h3>
                 <button onclick="toggleAllSchedules()" class="text-3xl text-gray-500">×</button>
               </div>
               <div>${futureListHtml}</div>
@@ -1238,7 +1330,7 @@
       if(showCampingDetail && selectedCamping){
         const days = getDaysDiffInclusive(selectedCamping.startDate, selectedCamping.endDate);
         const daysHtml = days === 1 ? '<div>🗓️ 당일치기</div>' : `<div>🗓️ ${days-1}박${days}일</div>`;
-        const addressHtml = selectedCamping.address ? `<div>📍 ${escapeHtml(selectedCamping.address)}</div>` : '';
+        const addressHtml = selectedCamping.address ? `<div>${escapeHtml(selectedCamping.address)}</div>` : '';
         const websiteHtml = selectedCamping.website ? `<div>🔗 <a href="${escapeHtml(selectedCamping.website)}" target="_blank" class="text-blue-600 underline">웹사이트 바로가기</a></div>` : '';
         const infoHtml = selectedCamping.info ? `<div class="bg-gray-50 rounded-lg p-4"><div class="text-sm font-medium mb-2">📝 안내 및 메모</div><div class="text-sm whitespace-pre-wrap">${escapeHtml(selectedCamping.info)}</div></div>` : '';
         
@@ -1301,7 +1393,7 @@
                 <div class="bg-yellow-50 rounded-lg p-4">
                   <h4 class="font-bold text-lg mb-2">${escapeHtml(selectedCamping.name)}</h4>
                   <div class="text-sm text-gray-600 space-y-1">
-                    <div>📅 ${selectedCamping.startDate} ~ ${selectedCamping.endDate}</div>
+                    <div>${selectedCamping.startDate} ~ ${selectedCamping.endDate}</div>
                     ${daysHtml}
                     ${addressHtml}
                     ${websiteHtml}
@@ -1311,8 +1403,11 @@
                 ${prepItemsHtml}
                 
                 <div class="bg-white rounded-lg p-4 border-2 border-blue-200">
-                  <button onclick="openExpenseModal()" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold text-lg active:bg-blue-700">
-                    💰 정산하기
+                  <button onclick="openExpenseModal()" class="w-full py-3 bg-blue-600 text-white rounded-lg font-bold text-lg active:bg-blue-700 flex items-center justify-center gap-2">
+                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                    </svg>
+                    정산하기
                   </button>
                 </div>
                 
@@ -1357,7 +1452,7 @@
                   <span class="text-sm">${escapeHtml(currentUser.name)}</span>
                 </div>
                 <button onclick="toggleAllSchedules()" class="px-3 py-1.5 bg-white/20 rounded-lg text-xs font-medium active:bg-white/30">
-                  📅 일정보기
+                  일정보기
                 </button>
               </div>
             </div>
@@ -1548,14 +1643,24 @@
                 <input type="text" id="campingEndDate" value="${editing ? editing.endDate : (selectedDate || '')}" class="date-input px-4 py-3 border rounded-lg" autocomplete="off">
               </div>
             </div>
-            <div class="text-xs text-gray-500 bg-blue-50 p-2 rounded">💡 시작일과 종료일을 설정하면 2박3일, 3박4일 등의 일정을 만들 수 있습니다</div>
+            <div class="text-xs text-gray-500 bg-blue-50 p-2 rounded">※ 시작일과 종료일을 설정하면 2박3일, 3박4일 등의 일정을 만들 수 있습니다</div>
             
             <div>
               <label class="block text-sm mb-2 font-medium">참여자 선택 *</label>
               <div class="text-xs text-gray-500 mb-2">함께 가는 팀원을 선택하세요 (선택된 팀원만 이 일정을 볼 수 있습니다)</div>
               ${participantDisplayHtml}
-              <button type="button" onclick="openParticipantModal()" class="w-full py-3 border-2 border-green-600 text-green-600 rounded-lg font-medium hover:bg-green-50 active:bg-green-100">
-                ${selectedParticipants.length === 0 ? '👥 참여자를 선택해주세요' : '✏️ 참여자 변경하기'}
+              <button type="button" onclick="openParticipantModal()" class="w-full py-3 border-2 border-green-600 text-green-600 rounded-lg font-medium hover:bg-green-50 active:bg-green-100 flex items-center justify-center gap-2">
+                ${selectedParticipants.length === 0 ? `
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                  </svg>
+                  <span>참여자를 선택해주세요</span>
+                ` : `
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+                  </svg>
+                  <span>참여자 변경하기</span>
+                `}
               </button>
             </div>
             
@@ -1589,7 +1694,12 @@
         <div class="fixed inset-0 bg-black/50 z-[60] flex items-end" onclick="if(event.target===this)closeParticipantModal()">
           <div class="bg-white w-full rounded-t-3xl p-5 max-h-[70vh] overflow-y-auto animate-slide-up">
             <div class="flex justify-between items-center mb-4">
-              <h3 class="text-xl font-bold">👥 참여자 선택</h3>
+              <h3 class="text-xl font-bold flex items-center gap-2">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+                참여자 선택
+              </h3>
               <button onclick="closeParticipantModal()" class="text-3xl text-gray-500">×</button>
             </div>
             
@@ -1704,19 +1814,28 @@
         totalAmount += teamTotal;
       });
       
-      const perPerson = participants.length > 0 ? Math.round(totalAmount / participants.length) : 0;
+      const perPerson = participants.length > 0 ? Math.floor((totalAmount / participants.length) / 100) * 100 : 0;
       
       return `
         <div class="fixed inset-0 bg-black/50 z-50 flex items-end" onclick="if(event.target===this)closeExpenseModal()">
           <div class="bg-white w-full rounded-t-3xl p-3 sm:p-5 max-h-[85vh] overflow-y-auto animate-slide-up">
             <div class="flex justify-between items-center mb-3 sm:mb-4 sticky top-0 bg-white pb-2 sm:pb-3 border-b">
-              <h3 class="text-lg sm:text-xl font-bold">💰 정산</h3>
+              <h3 class="text-lg sm:text-xl font-bold flex items-center gap-2">
+                <svg class="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                </svg>
+                정산
+              </h3>
               <button onclick="closeExpenseModal()" class="text-3xl text-gray-500">×</button>
             </div>
             
             ${participants.length === 0 ? `
               <div class="text-center py-8 text-gray-400">
-                <div class="text-4xl mb-2">👥</div>
+                <div class="flex justify-center mb-2">
+                  <svg class="w-16 h-16" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+                  </svg>
+                </div>
                 <div>참여자를 먼저 등록해주세요</div>
               </div>
             ` : `
@@ -1797,6 +1916,9 @@
                 <span>1/n (${participants.length}명)</span>
                 <span class="text-xl sm:text-2xl text-blue-600">${perPerson.toLocaleString()}원</span>
               </div>
+              <div class="text-xs text-gray-500 text-center pt-1">
+                ※ 100원 단위 이하 절삭 합니다.
+              </div>
             </div>
             `}
             
@@ -1821,25 +1943,31 @@
 
     /* 실시간 구독 & 부팅 */
     function init(){
-      db.collection('schedules').onSnapshot(snap=>{ 
+      // 기존 리스너 해제 (중복 방지)
+      if(unsubscribeSchedules) unsubscribeSchedules();
+      if(unsubscribeCampings) unsubscribeCampings();
+      if(unsubscribePrepItems) unsubscribePrepItems();
+      if(unsubscribeExpenses) unsubscribeExpenses();
+      
+      unsubscribeSchedules = db.collection('schedules').onSnapshot(snap=>{ 
         schedules=[]; 
         snap.forEach(doc=>{ schedules.push(Object.assign({ id: doc.id }, doc.data())); }); 
         render(); 
       });
       
-      db.collection('campings').onSnapshot(snap=>{ 
+      unsubscribeCampings = db.collection('campings').onSnapshot(snap=>{ 
         campings=[]; 
         snap.forEach(doc=>{ campings.push(Object.assign({ id: doc.id }, doc.data())); }); 
         render(); 
       });
 
-      db.collection('prepItems').onSnapshot(snap=>{ 
+      unsubscribePrepItems = db.collection('prepItems').onSnapshot(snap=>{ 
         prepItems=[]; 
         snap.forEach(doc=>{ prepItems.push(Object.assign({ id: doc.id }, doc.data())); }); 
         render(); 
       });
       
-      db.collection('expenses').onSnapshot(snap=>{ 
+      unsubscribeExpenses = db.collection('expenses').onSnapshot(snap=>{ 
         expenses=[]; 
         snap.forEach(doc=>{ expenses.push(Object.assign({ id: doc.id }, doc.data())); }); 
         
@@ -1875,6 +2003,12 @@
     
     /* 항목 DOM 추가 (깜빡임 방지) */
     function addExpenseItemToDOM(expenseId, data){
+      // 이미 DOM에 존재하는지 확인 (중복 방지)
+      if(document.querySelector(`[data-expense-id="${expenseId}"]`)) {
+        console.log('항목이 이미 존재함, 추가 스킵:', expenseId);
+        return;
+      }
+      
       const user = allUsers.find(u => u.id === data.userId);
       if(!user) return;
       
@@ -1979,7 +2113,7 @@
         totalAmount += teamTotal;
       });
       
-      const perPerson = participants.length > 0 ? Math.round(totalAmount / participants.length) : 0;
+      const perPerson = participants.length > 0 ? Math.floor((totalAmount / participants.length) / 100) * 100 : 0;
       
       console.log('총계 업데이트:', totalAmount, '1/n:', perPerson);
       console.log('팀별 소계:', teamTotals);
