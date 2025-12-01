@@ -1708,9 +1708,9 @@
       
       return `
         <div class="fixed inset-0 bg-black/50 z-50 flex items-end" onclick="if(event.target===this)closeExpenseModal()">
-          <div class="bg-white w-full rounded-t-3xl p-5 max-h-[85vh] overflow-y-auto animate-slide-up">
-            <div class="flex justify-between items-center mb-4 sticky top-0 bg-white pb-3 border-b">
-              <h3 class="text-xl font-bold">💰 정산</h3>
+          <div class="bg-white w-full rounded-t-3xl p-3 sm:p-5 max-h-[85vh] overflow-y-auto animate-slide-up">
+            <div class="flex justify-between items-center mb-3 sm:mb-4 sticky top-0 bg-white pb-2 sm:pb-3 border-b">
+              <h3 class="text-lg sm:text-xl font-bold">💰 정산</h3>
               <button onclick="closeExpenseModal()" class="text-3xl text-gray-500">×</button>
             </div>
             
@@ -1720,7 +1720,7 @@
                 <div>참여자를 먼저 등록해주세요</div>
               </div>
             ` : `
-            <div class="space-y-6 mb-6">
+            <div class="space-y-4 sm:space-y-6 mb-4 sm:mb-6">
               ${participants.map(user => {
                 const color = colorPalette[user.colorIndex];
                 const isMe = user.id === currentUser.id;
@@ -1728,21 +1728,21 @@
                 const teamTotal = teamTotals[user.id] || 0;
                 
                 return `
-                  <div class="border-2 rounded-xl p-4" style="border-color: ${color}33">
-                    <div class="flex justify-between items-center mb-3">
-                      <div class="font-bold text-lg" style="color: ${color}">
+                  <div class="border-2 rounded-xl p-3 sm:p-4" style="border-color: ${color}33" data-user-id="${user.id}">
+                    <div class="flex justify-between items-center mb-2 sm:mb-3">
+                      <div class="font-bold text-base sm:text-lg" style="color: ${color}">
                         ${escapeHtml(user.name)}${isMe ? ' (나)' : ''}
                       </div>
                       ${isMe ? `
                         <button onclick="addExpenseItem('${user.id}')" 
-                          class="px-3 py-1 text-sm rounded-lg font-medium"
+                          class="px-2 sm:px-3 py-1 text-xs sm:text-sm rounded-lg font-medium"
                           style="background-color: ${color}22; color: ${color}">
                           + 항목추가
                         </button>
                       ` : ''}
                     </div>
                     
-                    <div class="space-y-2 mb-3">
+                    <div class="space-y-2 mb-2 sm:mb-3">
                       ${userExpenses.length === 0 ? `
                         <div class="text-center py-4 text-gray-400 text-sm">
                           ${isMe ? '지출 항목을 추가해주세요' : '지출 내역이 없습니다'}
@@ -1750,25 +1750,26 @@
                       ` : userExpenses.map(expense => {
                         const canEdit = isMe;
                         return `
-                          <div class="flex items-center gap-2">
+                          <div class="flex items-center gap-1 sm:gap-2" data-expense-id="${expense.id}">
                             <input type="text" 
                               value="${escapeHtml(expense.description || '')}"
                               placeholder="지출 내용"
                               ${canEdit ? '' : 'readonly'}
                               ${canEdit ? `oninput="updateExpenseItem('${expense.id}', 'description', this.value)"` : ''}
-                              class="flex-1 px-3 py-2 border rounded-lg text-sm ${canEdit ? '' : 'bg-gray-50'}" 
+                              class="flex-1 px-2 sm:px-3 py-2 border rounded-lg text-sm ${canEdit ? '' : 'bg-gray-50'}" 
                               autocomplete="off">
                             <input type="text" 
+                              inputmode="numeric"
                               value="${expense.amount && expense.amount > 0 ? expense.amount.toLocaleString() : ''}"
-                              placeholder="금액 입력"
+                              placeholder="금액"
                               ${canEdit ? '' : 'readonly'}
                               ${canEdit ? `oninput="formatAmountInput(this, '${expense.id}')"` : ''}
-                              class="w-28 px-3 py-2 border rounded-lg text-sm text-right ${canEdit ? '' : 'bg-gray-50'}" 
+                              class="w-24 sm:w-28 px-2 sm:px-3 py-2 border rounded-lg text-sm text-right ${canEdit ? '' : 'bg-gray-50'}" 
                               autocomplete="off">
                             ${canEdit ? `
                               <button onclick="deleteExpenseItem('${expense.id}')" 
-                                class="p-2 text-red-600 hover:bg-red-50 rounded-lg active:bg-red-100">
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                class="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg active:bg-red-100 flex-shrink-0">
+                                <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
                                 </svg>
                               </button>
@@ -1787,19 +1788,19 @@
               }).join('')}
             </div>
             
-            <div class="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-4 space-y-2 sticky bottom-0">
-              <div class="flex justify-between items-center text-lg font-bold">
+            <div class="bg-gradient-to-r from-green-50 to-blue-50 rounded-xl p-3 sm:p-4 space-y-1 sm:space-y-2 sticky bottom-0">
+              <div class="flex justify-between items-center text-base sm:text-lg font-bold">
                 <span>총 합계</span>
-                <span class="text-2xl text-green-600">${totalAmount.toLocaleString()}원</span>
+                <span class="text-xl sm:text-2xl text-green-600">${totalAmount.toLocaleString()}원</span>
               </div>
-              <div class="flex justify-between items-center text-lg font-bold">
+              <div class="flex justify-between items-center text-base sm:text-lg font-bold">
                 <span>1/n (${participants.length}명)</span>
-                <span class="text-2xl text-blue-600">${perPerson.toLocaleString()}원</span>
+                <span class="text-xl sm:text-2xl text-blue-600">${perPerson.toLocaleString()}원</span>
               </div>
             </div>
             `}
             
-            <div class="mt-4">
+            <div class="mt-3 sm:mt-4">
               <button onclick="closeExpenseModal()" 
                 class="w-full py-3 bg-gray-500 text-white rounded-lg font-medium active:bg-gray-600">
                 닫기
@@ -1841,7 +1842,179 @@
       db.collection('expenses').onSnapshot(snap=>{ 
         expenses=[]; 
         snap.forEach(doc=>{ expenses.push(Object.assign({ id: doc.id }, doc.data())); }); 
-        render(); 
+        
+        // 정산 모달이 열려있으면
+        if(showExpenseModal && selectedCamping) {
+          const camping = selectedCamping;
+          
+          // 변경 내용 처리
+          snap.docChanges().forEach(change => {
+            const data = change.doc.data();
+            
+            // 현재 캠핑의 expense만 처리
+            if(data.campingId === camping.id) {
+              console.log('변경 감지:', change.type, data);
+              
+              if(change.type === 'added') {
+                // 항목 추가 - DOM에 직접 추가
+                addExpenseItemToDOM(change.doc.id, data);
+              } else if(change.type === 'removed') {
+                // 항목 삭제 - DOM에서 직접 제거
+                removeExpenseItemFromDOM(change.doc.id);
+              }
+            }
+          });
+          
+          // 모든 변경 후 소계/총계 업데이트
+          updateExpenseModalContent();
+        } else {
+          render();
+        }
+      });
+    }
+    
+    /* 항목 DOM 추가 (깜빡임 방지) */
+    function addExpenseItemToDOM(expenseId, data){
+      const user = allUsers.find(u => u.id === data.userId);
+      if(!user) return;
+      
+      const isMe = user.id === currentUser.id;
+      const canEdit = isMe;
+      const color = colorPalette[user.colorIndex];
+      
+      // 해당 유저의 카드 찾기
+      const teamCard = document.querySelector(`[data-user-id="${data.userId}"]`);
+      if(!teamCard) return;
+      
+      // 항목 리스트 컨테이너 찾기
+      let itemsContainer = teamCard.querySelector('.space-y-2');
+      if(!itemsContainer) return;
+      
+      // "지출 항목을 추가해주세요" 메시지 제거
+      const emptyMessage = itemsContainer.querySelector('.text-center.py-4');
+      if(emptyMessage) {
+        emptyMessage.remove();
+      }
+      
+      // 새 항목 HTML 생성
+      const itemHtml = `
+        <div class="flex items-center gap-1 sm:gap-2" data-expense-id="${expenseId}">
+          <input type="text" 
+            value="${escapeHtml(data.description || '')}"
+            placeholder="지출 내용"
+            ${canEdit ? '' : 'readonly'}
+            ${canEdit ? `oninput="updateExpenseItem('${expenseId}', 'description', this.value)"` : ''}
+            class="flex-1 px-2 sm:px-3 py-2 border rounded-lg text-sm ${canEdit ? '' : 'bg-gray-50'}" 
+            autocomplete="off">
+          <input type="text" 
+            inputmode="numeric"
+            value="${data.amount && data.amount > 0 ? data.amount.toLocaleString() : ''}"
+            placeholder="금액"
+            ${canEdit ? '' : 'readonly'}
+            ${canEdit ? `oninput="formatAmountInput(this, '${expenseId}')"` : ''}
+            class="w-24 sm:w-28 px-2 sm:px-3 py-2 border rounded-lg text-sm text-right ${canEdit ? '' : 'bg-gray-50'}" 
+            autocomplete="off">
+          ${canEdit ? `
+            <button onclick="deleteExpenseItem('${expenseId}')" 
+              class="p-1.5 sm:p-2 text-red-600 hover:bg-red-50 rounded-lg active:bg-red-100 flex-shrink-0">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+            </button>
+          ` : ''}
+        </div>
+      `;
+      
+      // DOM에 추가
+      itemsContainer.insertAdjacentHTML('beforeend', itemHtml);
+      console.log('항목 DOM 추가 완료:', expenseId);
+    }
+    
+    /* 항목 DOM 제거 (깜빡임 방지) */
+    function removeExpenseItemFromDOM(expenseId){
+      const itemElement = document.querySelector(`[data-expense-id="${expenseId}"]`);
+      if(itemElement) {
+        itemElement.remove();
+        console.log('항목 DOM 제거 완료:', expenseId);
+        
+        // 항목이 모두 삭제되었는지 확인
+        const teamCard = itemElement.closest('[data-user-id]');
+        if(teamCard) {
+          const itemsContainer = teamCard.querySelector('.space-y-2');
+          const remainingItems = itemsContainer.querySelectorAll('[data-expense-id]');
+          
+          // 항목이 없으면 안내 메시지 표시
+          if(remainingItems.length === 0) {
+            const userId = teamCard.getAttribute('data-user-id');
+            const isMe = userId === currentUser.id;
+            itemsContainer.innerHTML = `
+              <div class="text-center py-4 text-gray-400 text-sm">
+                ${isMe ? '지출 항목을 추가해주세요' : '지출 내역이 없습니다'}
+              </div>
+            `;
+          }
+        }
+      }
+    }
+    
+    /* 정산 모달 내용만 업데이트 (깜빡임 방지) */
+    function updateExpenseModalContent(){
+      if(!showExpenseModal || !selectedCamping) return;
+      
+      const camping = selectedCamping;
+      const participants = (camping.participants || [])
+        .map(pid => allUsers.find(u => u.id === pid))
+        .filter(u => u);
+      
+      const campingExpenses = expenses.filter(e => e.campingId === camping.id);
+      
+      // 각 팀별 소계 및 총계 재계산
+      let totalAmount = 0;
+      const teamTotals = {};
+      
+      participants.forEach(user => {
+        const userExpenses = campingExpenses.filter(e => e.userId === user.id);
+        const teamTotal = userExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+        teamTotals[user.id] = teamTotal;
+        totalAmount += teamTotal;
+      });
+      
+      const perPerson = participants.length > 0 ? Math.round(totalAmount / participants.length) : 0;
+      
+      console.log('총계 업데이트:', totalAmount, '1/n:', perPerson);
+      console.log('팀별 소계:', teamTotals);
+      
+      // 총 합계 업데이트
+      const totalContainer = document.querySelector('.bg-gradient-to-r.from-green-50');
+      if(totalContainer) {
+        const totalAmountSpan = totalContainer.querySelector('.text-green-600');
+        if(totalAmountSpan) {
+          totalAmountSpan.textContent = totalAmount.toLocaleString() + '원';
+          console.log('총 합계 DOM 업데이트 완료');
+        }
+        
+        const perPersonSpan = totalContainer.querySelector('.text-blue-600');
+        if(perPersonSpan) {
+          perPersonSpan.textContent = perPerson.toLocaleString() + '원';
+          console.log('1/n DOM 업데이트 완료');
+        }
+      }
+      
+      // 각 팀별 소계 업데이트
+      participants.forEach(user => {
+        const teamTotal = teamTotals[user.id] || 0;
+        const teamCard = document.querySelector(`[data-user-id="${user.id}"]`);
+        if(teamCard) {
+          const subtotalSpan = teamCard.querySelector('.border-t span:last-child');
+          if(subtotalSpan) {
+            subtotalSpan.textContent = teamTotal.toLocaleString() + '원';
+            console.log(`${user.name} 소계 업데이트:`, teamTotal);
+          } else {
+            console.log(`${user.name} 소계 span 없음`);
+          }
+        } else {
+          console.log(`${user.name} 카드 없음`);
+        }
       });
     }
 
